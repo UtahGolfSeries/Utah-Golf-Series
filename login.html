@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Member Login</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding-top: 50px; background-color: #f4f4f9; }
+        .login-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; }
+        h2 { text-align: center; color: #333; }
+        label { display: block; margin-top: 15px; font-weight: bold; font-size: 14px; }
+        input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 20px; background-color: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #1b5e20; }
+        #message { margin-top: 15px; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <h2>Utah Golf Series</h2>
+    <form id="login-form">
+        <label>Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
+        
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+        
+        <button type="submit" id="login-button">Sign In</button>
+    </form>
+    <p id="message"></p>
+</div>
+
+<script type="module">
+    // Import Supabase from the CDN
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    // REPLACE THESE with your actual keys from your .env.local file
+    const SUPABASE_URL = 'https://your-project-id.supabase.co'
+    const SUPABASE_ANON_KEY = 'your-anon-key-goes-here'
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const loginForm = document.getElementById('login-form')
+    const messageBox = document.getElementById('message')
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const email = document.getElementById('email').value
+        const password = document.getElementById('password').value
+
+        messageBox.style.color = "blue"
+        messageBox.innerText = "Verifying..."
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        })
+
+        if (error) {
+            messageBox.style.color = "red"
+            messageBox.innerText = error.message
+        } else {
+            messageBox.style.color = "green"
+            messageBox.innerText = "Success! Logging you in..."
+            // Move to your home page after a second
+            setTimeout(() => { window.location.href = 'index.html' }, 1500)
+        }
+    })
+</script>
+
+</body>
+</html>

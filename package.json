@@ -1,5 +1,6 @@
 {
   "name": "utah-golf-series",
+  "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,6 +10,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "dotenv": "^17.2.4",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
