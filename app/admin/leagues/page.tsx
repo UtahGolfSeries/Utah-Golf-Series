@@ -340,7 +340,7 @@ export default function TournamentOps() {
   )
 }
 
-const styles = {
+const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: '20px', maxWidth: '950px', margin: '0 auto', fontFamily: 'sans-serif' as const },
   loader: { padding: '100px 20px', textAlign: 'center' as const },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
