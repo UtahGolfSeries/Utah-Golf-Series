@@ -20,13 +20,16 @@ export default function Header() {
         <Link href="/" style={styles.link}>Home</Link>
         <Link href="/standings" style={styles.link}>Standings</Link>
         <Link href="/account" style={styles.link}>My Account</Link>        
+        
         {user ? (
           <>
-            {/* ADMIN ONLY LINK */}
+            {/* ADMIN ONLY LINKS */}
             {isAdmin && (
-              <Link href="/admin/members" style={styles.adminLink}>Admin Panel</Link>
-            )}
-
+  <>
+    <Link href="/admin/leagues" style={styles.adminLink}>Leagues</Link>
+    <Link href="/admin/members" style={styles.adminLink}>Members</Link>
+  </>
+)}
 
             {/* PLAYER ONLY LINK - Hidden for Admins */}
             {isPlayer && (
