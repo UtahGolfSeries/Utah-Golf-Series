@@ -150,14 +150,15 @@ export default function EnterScore() {
       }
 
       const { error: scoreError } = await supabase.from('scorecards').insert({
-        member_id: profile.id,
-        week_number: leagueSettings.current_week,
-        score: totalGross,
-        net_score: totalNet,
-        holes_played: leagueSettings.holes_to_play,
-        tee_played: leagueSettings.tee_color,
-        side_played: leagueSettings.side_to_play === 'All' && isNineHoles ? 'Front' : leagueSettings.side_to_play
-      })
+    member_id: profile.id,
+    week_number: leagueSettings.current_week,
+    score: totalGross,
+    net_score: totalNet,
+    hole_scores: grossScores, // Save the whole array!
+    holes_played: leagueSettings.holes_to_play,
+    tee_played: leagueSettings.tee_color,
+    side_played: leagueSettings.side_to_play
+})
       
       if (scoreError) throw scoreError
 

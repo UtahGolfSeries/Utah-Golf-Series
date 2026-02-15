@@ -22,16 +22,16 @@ export default function RosterManagement() {
 
   // 2. Fetch Roster
   const fetchRoster = async () => {
-  setLoading(true)
-  const { data } = await supabase
-    .from('member')
-    .select('*')
-    .neq('role', 'admin') // <--- ADD THIS LINE
-    .order('display_name', { ascending: true })
-  
-  if (data) setMembers(data)
-  setLoading(false)
-}
+    setLoading(true)
+    const { data } = await supabase
+      .from('member')
+      .select('*')
+      .neq('role', 'admin')
+      .order('display_name', { ascending: true })
+    
+    if (data) setMembers(data)
+    setLoading(false)
+  }
 
   useEffect(() => {
     fetchRoster()
@@ -54,8 +54,8 @@ export default function RosterManagement() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1>Roster Management</h1>
-        <p>Adjust handicaps and assign flights. Changes save automatically.</p>
+        <h1 style={{ color: '#000' }}>Roster Management</h1>
+        <p style={{ color: '#444' }}>Adjust handicaps and assign flights. Changes save automatically.</p>
       </div>
 
       <div style={styles.tableWrapper}>
@@ -72,7 +72,7 @@ export default function RosterManagement() {
             {members.map((m) => (
               <tr key={m.id} style={styles.tr}>
                 <td style={styles.td}>
-                  <strong style={{ color: '#1a1a1a' }}>{m.display_name}</strong>
+                  <strong style={{ color: '#000' }}>{m.display_name}</strong>
                 </td>
                 
                 <td style={styles.td}>
@@ -101,7 +101,7 @@ export default function RosterManagement() {
                 <td style={styles.td}>
                   {updatingId === m.id ? 
                     <span style={{color: '#666', fontSize: '12px'}}>Saving...</span> : 
-                    <span style={{color: '#2e7d32', fontSize: '12px'}}>Saved</span>
+                    <span style={{color: '#2e7d32', fontSize: '12px', fontWeight: 'bold'}}>Saved</span>
                   }
                 </td>
               </tr>
@@ -119,21 +119,28 @@ const styles = {
   header: { marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '15px' },
   tableWrapper: { background: '#fff', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
   table: { width: '100%', borderCollapse: 'collapse' as const },
-  th: { padding: '12px', background: '#f8f9fa', borderBottom: '1px solid #eee', color: '#666', fontSize: '11px', textTransform: 'uppercase' as const, textAlign: 'left' as const },
+  th: { padding: '12px', background: '#f8f9fa', borderBottom: '1px solid #eee', color: '#333', fontSize: '11px', textTransform: 'uppercase' as const, textAlign: 'left' as const, fontWeight: 'bold' as const },
   td: { padding: '12px', borderBottom: '1px solid #eee', fontSize: '14px' },
   tr: { borderBottom: '1px solid #eee' },
   inlineInput: { 
     width: '80px', 
-    padding: '6px', 
+    padding: '8px', 
     borderRadius: '4px', 
-    border: '1px solid #ddd',
-    fontSize: '14px'
+    border: '1px solid #bbb', // Darker border
+    fontSize: '14px',
+    color: '#000', // Black text
+    fontWeight: 'bold' as const,
+    outlineColor: '#2e7d32'
   },
   inlineSelect: { 
-    padding: '6px', 
+    padding: '8px', 
     borderRadius: '4px', 
-    border: '1px solid #ddd',
+    border: '1px solid #bbb', // Darker border
     fontSize: '14px',
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    color: '#000', // Black text
+    fontWeight: 'bold' as const,
+    cursor: 'pointer' as const,
+    outlineColor: '#2e7d32'
   }
 }

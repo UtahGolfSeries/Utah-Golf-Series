@@ -63,34 +63,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string, displayName: string, phone: string) {
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    })
+  const { data, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  })
 
-    if (authError) throw authError
-    if (!data.user) throw new Error("Sign up failed")
+  if (authError) throw authError
+  if (!data.user) throw new Error("Sign up failed")
 
-    const { error: profileError } = await supabase
-      .from('member')
-      .insert([
-        {
-          auth_user_id: data.user.id,
-          display_name: displayName,
-          phone_number: phone,
-          handicap_index: 0,
-          role: 'player', 
-          has_submitted_current_round: false
-        }
-      ])
+  // Use .upsert instead of .insert to prevent duplicate key errors during race conditions
+  const { error: profileError } = await supabase
+    .from('member')
+    .upsert(
+      {
+        auth_user_id: data.user.id,
+        display_name: displayName,
+        phone_number: phone,
+        handicap_index: 0,
+        role: 'player', 
+        has_submitted_current_round: false
+      },
+      { onConflict: 'auth_user_id' } // This tells Supabase what column is the "Unique" one
+    )
 
-    if (profileError) {
-      console.error("Error creating member profile:", profileError.message)
-      throw profileError
-    }
+  if (profileError) {
+    // If it's still failing, it's a real error
+    console.error("Error creating member profile:", profileError.message)
+    throw profileError
+  }
 
-    return data
-  } // <--- THIS WAS THE MISSING BRACE
+  return data
+}
 
   async function logout() {
     try {
