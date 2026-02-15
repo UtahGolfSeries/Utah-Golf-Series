@@ -12,8 +12,14 @@ export default function Header() {
 
   return (
     <nav style={styles.nav}>
-      <div style={styles.logo}>
-        <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>UTAH GOLF SERIES</Link>
+      <div style={styles.logoContainer}>
+        <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>
+          UTAH GOLF SERIES
+        </Link>
+        {/* ADMIN BADGE */}
+        {isAdmin && (
+          <span style={styles.adminBadge}>Admin</span>
+        )}
       </div>
       
       <div style={styles.links}>
@@ -25,11 +31,11 @@ export default function Header() {
           <>
             {/* ADMIN ONLY LINKS */}
             {isAdmin && (
-  <>
-    <Link href="/admin/leagues" style={styles.adminLink}>Leagues</Link>
-    <Link href="/admin/members" style={styles.adminLink}>Members</Link>
-  </>
-)}
+              <>
+                <Link href="/admin/leagues" style={styles.adminLink}>Leagues</Link>
+                <Link href="/admin/members" style={styles.adminLink}>Members</Link>
+              </>
+            )}
 
             {/* PLAYER ONLY LINK - Hidden for Admins */}
             {isPlayer && (
@@ -58,7 +64,22 @@ const styles = {
     backgroundColor: '#1a1a1a',
     color: 'white',
   },
+  logoContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
   logo: { fontWeight: 'bold' as const, fontSize: '1.2rem' },
+  adminBadge: {
+    backgroundColor: '#4caf50',
+    color: 'white',
+    fontSize: '10px',
+    fontWeight: 'bold' as const,
+    padding: '2px 6px',
+    borderRadius: '4px',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px'
+  },
   links: { display: 'flex', alignItems: 'center', gap: '20px' },
   link: { color: 'white', textDecoration: 'none', fontSize: '14px' },
   

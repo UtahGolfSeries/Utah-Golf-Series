@@ -93,14 +93,18 @@ export default function AccountPage() {
           <p style={styles.value}>{user?.email}</p>
         </div>
 
-        {/* HANDICAP SECTION */}
-        <div style={styles.handicapBox}>
-          <div style={{ flex: 1 }}>
-            <label style={{ ...styles.label, color: '#2e7d32' }}>Official Handicap Index</label>
-            <p style={styles.handicapValue}>{user?.handicap_index ?? '0.0'}</p>
-          </div>
-        </div>
-        <p style={styles.disclaimer}>*Handicap is managed by the Admin.</p>
+        {/* HANDICAP SECTION - Hidden for Admins */}
+        {user?.role !== 'admin' && (
+          <>
+            <div style={styles.handicapBox}>
+              <div style={{ flex: 1 }}>
+                <label style={{ ...styles.label, color: '#2e7d32' }}>Official Handicap Index</label>
+                <p style={styles.handicapValue}>{user?.handicap_index ?? '0.0'}</p>
+              </div>
+            </div>
+            <p style={styles.disclaimer}>*Handicap is managed by the Admin.</p>
+          </>
+        )}
 
         {/* BUTTON ROW */}
         <div style={styles.buttonRow}>
@@ -140,13 +144,13 @@ const styles = {
     padding: '10px',
     fontSize: '16px',
     borderRadius: '4px',
-    border: '2px solid #2e7d32', // Slightly thicker border for better visibility
+    border: '2px solid #2e7d32',
     marginTop: '5px',
     boxSizing: 'border-box' as const,
-    color: '#000000',           // <--- Pure black text for maximum readability
-    backgroundColor: '#ffffff', // Ensure background is pure white
-    fontWeight: '500' as const, // Makes the text a tiny bit thicker
-    outline: 'none'             // Removes the default browser glow
+    color: '#000000',
+    backgroundColor: '#ffffff',
+    fontWeight: '500' as const,
+    outline: 'none'
   },
   handicapBox: { 
     display: 'flex', 

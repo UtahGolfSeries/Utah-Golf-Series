@@ -195,7 +195,7 @@ export default function TournamentOps() {
       </div>
 
       {/* MEMBER TABLES BY FLIGHT */}
-      {['A', 'B', 'C'].map((flightLabel) => {
+      {['A', 'B', 'C', 'D'].map((flightLabel) => {
         const flightMembers = members.filter(m => 
           m.flight === flightLabel && 
           m.display_name.toLowerCase().includes(searchTerm.toLowerCase())
