@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 import { createClient } from '@supabase/supabase-js'
-import { useRouter } from 'next/navigation' // Added for redirection
+import { useRouter } from 'next/navigation'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,17 +14,16 @@ const AuthContext = createContext<any>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter() // Initialize the router
+  const router = useRouter()
 
   useEffect(() => {
     const fetchSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (session?.user) {
-        // Fetch ALL necessary profile data
         const { data: profile } = await supabase
           .from('member')
-          .select('display_name, phone_number, handicap_index, has_submitted_current_round')
+          .select('display_name, phone_number, handicap_index, has_submitted_current_round, role')
           .eq('auth_user_id', session.user.id)
           .single()
 
@@ -41,14 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const { data: profile } = await supabase
           .from('member')
-          .select('display_name, phone_number, handicap_index, has_submitted_current_round')
+          .select('display_name, phone_number, handicap_index, has_submitted_current_round, role')
           .eq('auth_user_id', session.user.id)
           .single()
+          
         setUser({ ...session.user, ...profile })
       } else {
         setUser(null)
-        // Automatically send home if the session is lost or they log out
-        router.push('/')
       }
     })
 
@@ -65,21 +63,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string, displayName: string, phone: string) {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
+    })
+
+    if (authError) throw authError
+    if (!data.user) throw new Error("Sign up failed")
+
+    const { error: profileError } = await supabase
+      .from('member')
+      .insert([
+        {
+          auth_user_id: data.user.id,
           display_name: displayName,
           phone_number: phone,
-        },
-      },
-    })
-    if (error) throw error
-    return data
-  }
+          handicap_index: 0,
+          role: 'player', 
+          has_submitted_current_round: false
+        }
+      ])
 
-async function logout() {
+    if (profileError) {
+      console.error("Error creating member profile:", profileError.message)
+      throw profileError
+    }
+
+    return data
+  } // <--- THIS WAS THE MISSING BRACE
+
+  async function logout() {
     try {
       // 1. Tell Supabase to end the session
       await supabase.auth.signOut()
