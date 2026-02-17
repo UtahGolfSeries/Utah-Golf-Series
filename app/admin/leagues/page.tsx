@@ -296,16 +296,17 @@ export default function TournamentOps() {
             <div style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
-                  <tr>
-                    <th style={{ ...styles.th, width: '12%' }}>Scorecard</th>
-                    <th style={{ ...styles.th, width: '20%' }}>Player</th>
-                    <th style={{ ...styles.th, width: '18%' }}>Partner</th>
-                    <th style={{ ...styles.th, width: '12%' }}>Check-In</th>
-                    <th style={{ ...styles.th, width: '13%' }}>Scoring</th>
-                    <th style={{ ...styles.th, width: '15%' }}>Round</th>
-                    <th style={{ ...styles.th, width: '10%' }}>Net</th>
-                  </tr>
-                </thead>
+  <tr>
+    <th style={{ ...styles.th, width: '10%' }}>Actions</th>
+    <th style={{ ...styles.th, width: '15%' }}>Player</th>
+    <th style={{ ...styles.th, width: '15%' }}>Partner</th>
+    <th style={{ ...styles.th, width: '15%' }}>Check-In</th>
+    <th style={{ ...styles.th, width: '10%' }}>Status</th>
+    <th style={{ ...styles.th, width: '10%' }}>Course</th>
+    <th style={{ ...styles.th, width: '12%' }}>Net Score</th>
+    <th style={{ ...styles.th, width: '15%' }}>Winnings ($)</th> 
+  </tr>
+</thead>
                 <tbody>
                   {flightMembers.map((m) => (
                     <React.Fragment key={m.id}>
@@ -338,8 +339,28 @@ export default function TournamentOps() {
                           {m.weekScore ? <div style={{ fontSize: '11px', lineHeight: '1.2' }}><span style={{ color: '#000', fontWeight: 'bold' }}>{m.weekScore.tee_played}</span><div style={{ color: '#666' }}>{m.weekScore.holes_played === 18 ? '18H' : `${m.weekScore.side_played} 9`}</div></div> : '--'}
                         </td>
                         <td style={styles.td}>
-                          <button onClick={() => setExpandedPlayerId(expandedPlayerId === m.id ? null : m.id)} style={styles.netScoreBtn}>{m.weekScore?.net_score || '--'} <span style={{fontSize:'10px'}}>{expandedPlayerId === m.id ? '▲' : '▼'}</span></button>
-                        </td>
+  <button onClick={() => setExpandedPlayerId(expandedPlayerId === m.id ? null : m.id)} style={styles.netScoreBtn}>
+    {m.weekScore?.net_score || '--'} <span style={{fontSize:'10px'}}>{expandedPlayerId === m.id ? '▲' : '▼'}</span>
+  </button>
+</td>
+<td style={styles.td}>
+  {m.weekScore ? (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+      <span style={{ position: 'absolute', left: '5px', fontWeight: 'bold', color: '#2e7d32', fontSize: '12px' }}>$</span>
+      <input 
+        type="number" 
+        step="0.01"
+        placeholder="0.00"
+        defaultValue={m.weekScore.winnings || ''}
+        // This ensures it only updates the specific scorecard ID for THIS week
+        onBlur={(e) => handleWinningsChange(m.weekScore.id, e.target.value)}
+        style={styles.tableWinningsInput}
+      />
+    </div>
+  ) : (
+    <span style={{ color: '#ccc', fontSize: '11px' }}>No Scorecard</span>
+  )}
+</td>
                       </tr>
                       {expandedPlayerId === m.id && m.weekScore?.hole_scores && course && (
   <tr>
@@ -376,33 +397,6 @@ export default function TournamentOps() {
               );
             })}
           </div>
-        </div>
-
-        {/* RIGHT SIDE: WINNINGS ENTRY */}
-        <div style={{ 
-          minWidth: '140px', 
-          textAlign: 'right', 
-          borderLeft: '1px solid #c8e6c9', 
-          paddingLeft: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end'
-        }}>
-          <label style={{ ...styles.label, color: '#2e7d32', marginBottom: '8px', display: 'block' }}>
-            Week Payout ($)
-          </label>
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '10px', top: '10px', fontWeight: 'bold', color: '#2e7d32' }}>$</span>
-            <input 
-              type="number" 
-              step="0.01"
-              placeholder="0.00"
-              defaultValue={m.weekScore.winnings || ''}
-              onBlur={(e) => handleWinningsChange(m.weekScore.id, e.target.value)}
-              style={styles.winningsInput}
-            />
-          </div>
-          <span style={{ fontSize: '9px', color: '#999', marginTop: '5px' }}>Saves on click-away</span>
         </div>
 
       </div>
@@ -557,5 +551,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   confirmBtn: { flex: 2, padding: '12px', background: '#2e7d32', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
   field: { marginBottom: '15px' },
   label: { fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', display: 'block' },
-  select: { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #bbb', backgroundColor: '#fff', color: '#000' }
+  select: { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #bbb', backgroundColor: '#fff', color: '#000' },
+  tableWinningsInput: {
+  width: '100%',
+  padding: '6px 6px 6px 15px',
+  borderRadius: '4px',
+  border: '1px solid #c8e6c9',
+  fontSize: '13px',
+  fontWeight: 'bold',
+  color: '#000',
+  outline: 'none',
+  backgroundColor: '#f9f9f9'
+},
 };
