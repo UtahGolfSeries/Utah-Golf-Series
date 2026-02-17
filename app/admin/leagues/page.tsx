@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import PageHeader from '../../components/pageHeader' // Import the shared component
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -27,7 +28,21 @@ export default function TournamentOps() {
     tee: 'White',
     side: 'All' 
   })
+  const handleWinningsChange = async (cardId: string, amount: string) => {
+    const numericAmount = parseFloat(amount) || 0;
+    
+    const { error } = await supabase
+      .from('scorecards')
+      .update({ winnings: numericAmount })
+      .eq('id', cardId);
 
+    if (error) {
+      alert("Error updating winnings: " + error.message);
+    } else {
+      // Refresh the local data so the table shows the updated amount
+      loadTournamentData();
+    }
+  };
   const [manualEntryPlayer, setManualEntryPlayer] = useState<any>(null);
   const [manualScores, setManualScores] = useState<number[]>(new Array(18).fill(0));
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
@@ -47,6 +62,15 @@ export default function TournamentOps() {
     try {
       const { data: courseData } = await supabase.from('courses').select('*').limit(1).single();
       if (courseData) setCourse(courseData);
+
+      const updateWinnings = async (cardId: string, amount: string) => {
+  const { error } = await supabase
+    .from('scorecards')
+    .update({ winnings: parseFloat(amount) || 0 })
+    .eq('id', cardId);
+  
+  if (!error) loadTournamentData();
+};
 
       const { data: settings } = await supabase.from('league_settings').select('*').eq('id', 1).single();
       if (settings) {
@@ -224,21 +248,38 @@ export default function TournamentOps() {
     <div style={styles.container}>
       <style dangerouslySetInnerHTML={{__html: `input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } input[type=number] { -moz-appearance: textfield; }`}} />
 
-      <div style={styles.header}>
-        <div>
-          <h1 style={{ color: '#000', margin: 0 }}>Tournament Ops</h1>
-          <p style={{ color: viewingWeek === currentWeek ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>
-            VIEWING: WEEK {viewingWeek} {viewingWeek !== currentWeek && "(READ-ONLY ARCHIVE)"}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '15px' }}>
-          <select value={viewingWeek} onChange={(e) => setViewingWeek(Number(e.target.value))} style={styles.weekSelect}>
-            {Array.from({ length: currentWeek }, (_, i) => i + 1).map(w => (
-              <option key={w} value={w}>Week {w}</option>
-            ))}
-          </select>
-          <button onClick={() => setShowModal(true)} disabled={isGlobalUpdating} style={styles.newRoundBtn}>Start Week {currentWeek + 1}</button>
-        </div>
+      <PageHeader 
+        title="League Members" 
+        subtitle={`VIEWING: WEEK ${viewingWeek} ${viewingWeek !== currentWeek ? "(READ-ONLY ARCHIVE)" : ""}`}
+        rightElement={
+          <>
+            <label style={styles.selectorLabel}>Jump to:</label>
+            <select 
+              value={viewingWeek} 
+              onChange={(e) => setViewingWeek(Number(e.target.value))} 
+              style={styles.weekSelect}
+            >
+              {Array.from({ length: currentWeek }, (_, i) => i + 1).map(w => (
+                <option key={w} value={w}>Week {w}</option>
+              ))}
+            </select>
+          </>
+        }
+      />
+
+      {/* Admin Control Bar - Start Week Button lives outside the header here */}
+      <div style={styles.adminControlBar}>
+        <button 
+          onClick={() => setShowModal(true)} 
+          disabled={isGlobalUpdating || viewingWeek !== currentWeek} 
+          style={{
+            ...styles.newRoundBtn, 
+            opacity: viewingWeek !== currentWeek ? 0.5 : 1,
+            cursor: viewingWeek !== currentWeek ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {isGlobalUpdating ? 'Processing...' : `Start Week ${currentWeek + 1}`}
+        </button>
       </div>
 
       <input type="text" placeholder="Search for a player..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.searchInput} />
@@ -250,13 +291,13 @@ export default function TournamentOps() {
         return (
           <div key={flightLabel} style={styles.flightSection}>
             <div style={styles.flightHeader}>
-              <h2 style={{ margin: 0, fontSize: '18px' }}>Flight {flightLabel}</h2>
+              <h2 style={{ margin: 0, fontSize: '18px', color: '#000' }}>Flight {flightLabel}</h2>
             </div>
             <div style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.th, width: '12%' }}>Actions</th>
+                    <th style={{ ...styles.th, width: '12%' }}>Scorecard</th>
                     <th style={{ ...styles.th, width: '20%' }}>Player</th>
                     <th style={{ ...styles.th, width: '18%' }}>Partner</th>
                     <th style={{ ...styles.th, width: '12%' }}>Check-In</th>
@@ -288,7 +329,7 @@ export default function TournamentOps() {
                           </select>
                         </td>
                         <td style={styles.td}>
-                          {m.has_submitted_current_round ? <span style={styles.badgeFinished}>Done</span> : viewingWeek === currentWeek ? <button onClick={() => toggleCheckIn(m.id, m.is_checked_in)} style={m.is_checked_in ? styles.checkedBtn : styles.uncheckedBtn}>{m.is_checked_in ? '✅ In' : 'Check In'}</button> : <span style={{ color: '#000', fontSize: '12px' }}>{m.is_checked_in ? 'In' : 'No'}</span>}
+                          {m.has_submitted_current_round ? <span style={styles.badgeFinished}>Done</span> : viewingWeek === currentWeek ? <button onClick={() => toggleCheckIn(m.id, m.is_checked_in)} style={m.is_checked_in ? styles.checkedBtn : styles.uncheckedBtn}>{m.is_checked_in ? 'Checked In' : 'Check In'}</button> : <span style={{ color: '#000', fontSize: '12px' }}>{m.is_checked_in ? 'In' : 'No'}</span>}
                         </td>
                         <td style={styles.td}>
                           <span style={ m.detailedStatus === 'Finished' ? styles.badgeDone : m.detailedStatus === 'Pending' ? styles.badgePendingState : m.detailedStatus === 'Verify' ? styles.badgeVerify : styles.badgeActive }>{m.detailedStatus}</span>
@@ -301,28 +342,73 @@ export default function TournamentOps() {
                         </td>
                       </tr>
                       {expandedPlayerId === m.id && m.weekScore?.hole_scores && course && (
-                        <tr>
-                          <td colSpan={7} style={styles.expandedRow}>
-                            <div style={styles.scorecardGrid}>
-                              <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#495057' }}>Net Hole Detail (• = pop):</p>
-                              <div style={styles.miniScorecard}>
-                                {m.weekScore.hole_scores.map((gross: number, idx: number) => {
-                                  const holeNum = idx + 1;
-                                  if ((m.weekScore.holes_played === 9 && m.weekScore.side_played === 'Back' && holeNum <= 9) || (m.weekScore.holes_played === 9 && m.weekScore.side_played === 'Front' && holeNum > 9) || gross === 0) return null;
-                                  const hcpVal = course.handicap_values[idx];
-                                  const effHcp = m.weekScore.holes_played === 9 ? Math.floor(m.handicap_index/2) : m.handicap_index;
-                                  let p = 0;
-                                  if(m.weekScore.holes_played === 9) { if(effHcp >= Math.ceil(hcpVal/2)) p++; if(effHcp >= Math.ceil(hcpVal/2)+9) p++; }
-                                  else { if(effHcp >= hcpVal) p++; if(effHcp >= hcpVal+18) p++; }
-                                  return (
-                                    <div key={idx} style={styles.holeBox}><div style={{fontSize: '9px', color: '#666'}}>H{holeNum}</div><div style={{fontWeight: 'bold', color: '#000'}}>{gross - p}{p > 0 && '•'}</div></div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
+  <tr>
+    <td colSpan={7} style={styles.expandedRow}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
+        
+        {/* LEFT SIDE: HOLE DETAILS */}
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#495057' }}>
+            Net Hole Detail (• = pop):
+          </p>
+          <div style={styles.miniScorecard}>
+            {m.weekScore.hole_scores.map((gross: number, idx: number) => {
+              const holeNum = idx + 1;
+              if ((m.weekScore.holes_played === 9 && m.weekScore.side_played === 'Back' && holeNum <= 9) || 
+                  (m.weekScore.holes_played === 9 && m.weekScore.side_played === 'Front' && holeNum > 9) || 
+                  gross === 0) return null;
+              
+              const hcpVal = course.handicap_values[idx];
+              const effHcp = m.weekScore.holes_played === 9 ? Math.floor(m.handicap_index/2) : m.handicap_index;
+              let p = 0;
+              if(m.weekScore.holes_played === 9) { 
+                if(effHcp >= Math.ceil(hcpVal/2)) p++; 
+                if(effHcp >= Math.ceil(hcpVal/2)+9) p++; 
+              } else { 
+                if(effHcp >= hcpVal) p++; 
+                if(effHcp >= hcpVal+18) p++; 
+              }
+              return (
+                <div key={idx} style={styles.holeBox}>
+                  <div style={{fontSize: '9px', color: '#666'}}>H{holeNum}</div>
+                  <div style={{fontWeight: 'bold', color: '#000'}}>{gross - p}{p > 0 && '•'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* RIGHT SIDE: WINNINGS ENTRY */}
+        <div style={{ 
+          minWidth: '140px', 
+          textAlign: 'right', 
+          borderLeft: '1px solid #c8e6c9', 
+          paddingLeft: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end'
+        }}>
+          <label style={{ ...styles.label, color: '#2e7d32', marginBottom: '8px', display: 'block' }}>
+            Week Payout ($)
+          </label>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '10px', top: '10px', fontWeight: 'bold', color: '#2e7d32' }}>$</span>
+            <input 
+              type="number" 
+              step="0.01"
+              placeholder="0.00"
+              defaultValue={m.weekScore.winnings || ''}
+              onBlur={(e) => handleWinningsChange(m.weekScore.id, e.target.value)}
+              style={styles.winningsInput}
+            />
+          </div>
+          <span style={{ fontSize: '9px', color: '#999', marginTop: '5px' }}>Saves on click-away</span>
+        </div>
+
+      </div>
+    </td>
+  </tr>
+)}
                     </React.Fragment>
                   ))}
                 </tbody>
@@ -332,7 +418,7 @@ export default function TournamentOps() {
         );
       })}
 
-      {/* MISSING MANUAL ENTRY MODAL */}
+      {/* MANUAL ENTRY MODAL */}
       {manualEntryPlayer && (
         <div style={styles.modalOverlay}>
           <div style={{...styles.modalContent, maxWidth: '650px'}}>
@@ -374,7 +460,7 @@ export default function TournamentOps() {
         </div>
       )}
 
-      {/* MISSING CONFIG MODAL (Start Week Button) */}
+      {/* CONFIG MODAL */}
       {showModal && (
         <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
@@ -420,34 +506,47 @@ export default function TournamentOps() {
 const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: '20px', maxWidth: '950px', margin: '0 auto', fontFamily: 'sans-serif' },
   loader: { padding: '100px 20px', textAlign: 'center' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  adminControlBar: { display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' },
+  selectorLabel: { fontSize: '9px', color: '#999', textTransform: 'uppercase', marginBottom: '4px' },
   searchInput: { width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px solid #bbb', fontSize: '16px', color: '#000', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', outlineColor: '#2e7d32', marginBottom: '20px' },
-  newRoundBtn: { background: '#1a1a1a', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', height: '37px' },
+  newRoundBtn: { background: '#2e7d32', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' },
   flightSection: { marginBottom: '40px' },
   flightHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', padding: '0 5px' },
-  playerCount: { fontSize: '12px', color: '#000', background: '#f0f0f0', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' },
   tableWrapper: { background: '#fff', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
   th: { padding: '12px', background: '#f8f9fa', borderBottom: '1px solid #eee', color: '#000', fontSize: '11px', textTransform: 'uppercase', textAlign: 'left', fontWeight: 'bold' },
   td: { padding: '12px', borderBottom: '1px solid #eee', fontSize: '13px', whiteSpace: 'nowrap' },
   tr: { borderBottom: '1px solid #eee' },
-  uncheckedBtn: { padding: '6px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#000', width: '80px', textAlign: 'center' },
-  checkedBtn: { padding: '6px 12px', background: '#d4edda', border: '1px solid #c3e6cb', color: '#155724', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', width: '80px', textAlign: 'center' },
+  uncheckedBtn: { padding: '6px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#000', width: '90px',display: 'flex',alignItems: 'center',justifyContent: 'center', textAlign: 'center' },
+  checkedBtn: { padding: '6px 12px', background: '#d4edda', border: '1px solid #c3e6cb', color: '#155724', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', width: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
   badgeDone: { background: '#d1ecf1', color: '#0c5460', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' },
   badgePendingState: { background: '#fff3e0', color: '#ef6c00', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #ffe0b2' },
   badgeVerify: { background: '#e1f5fe', color: '#0288d1', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #b3e5fc' },
   badgeActive: { color: '#2e7d32', fontSize: '11px', fontWeight: 'bold' },
   resetBtn: { padding: '6px 10px', background: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' },
-  manualEntryBtn: { padding: '6px 10px', background: '#e8f5e9', border: '1px solid #2e7d32', color: '#2e7d32', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' },
+  manualEntryBtn: { padding: '6px 10px', background: '#e8f5e9', border: '1px solid #2e7d32', color: '#2e7d32', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', width: '70px' },
   badgeFinished: { padding: '6px 12px', background: '#e9ecef', color: '#000', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #ccc' },
-  weekSelect: { padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', backgroundColor: '#fff', color: '#000', fontSize: '13px', height: '37px' },
+  weekSelect: { 
+    padding: '8px 12px', borderRadius: '6px', border: '1px solid #444', backgroundColor: '#333', 
+    fontSize: '14px', fontWeight: 'bold' as const, color: '#fff', outline: 'none'
+  },
+  winningsInput: {
+  width: '100px',
+  padding: '10px 10px 10px 25px', // Extra left padding for the $ sign
+  borderRadius: '8px',
+  border: '2px solid #2e7d32',
+  fontSize: '16px',
+  fontWeight: 'bold',
+  color: '#000',
+  outline: 'none',
+  backgroundColor: '#fff'
+},
   netScoreBtn: { background: 'none', border: 'none', color: '#2e7d32', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px' },
   expandedRow: { backgroundColor: '#f1f8e9', padding: '15px' },
   scorecardGrid: { marginTop: '10px' },
   miniScorecard: { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '5px' },
   holeBox: { background: '#fff', border: '1px solid #bbb', padding: '4px 6px', borderRadius: '4px', textAlign: 'center', minWidth: '40px' },
   pairingSelect: { width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #bbb', fontSize: '11px', backgroundColor: '#fff', color: '#000', cursor: 'pointer' },
-  // RE-ADDED MISSING MODAL STYLES
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modalContent: { background: 'white', padding: '30px', borderRadius: '12px', width: 'auto', maxWidth: '90%', color: '#000' },
   modalTitle: { marginTop: 0, fontSize: '24px', marginBottom: '15px' },

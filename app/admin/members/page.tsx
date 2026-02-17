@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import PageHeader from '../../components/pageHeader' // Import the shared component
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -12,7 +13,7 @@ export default function RosterManagement() {
   const [members, setMembers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("") // Added search state
+  const [searchTerm, setSearchTerm] = useState("") 
 
   // 1. Protection
   useEffect(() => {
@@ -59,10 +60,11 @@ export default function RosterManagement() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={{ color: '#000' }}>Roster Management</h1>
-        <p style={{ color: '#444' }}>Adjust handicaps and assign flights. Changes save automatically.</p>
-      </div>
+      {/* SHARED DARK HEADER */}
+      <PageHeader 
+        title="Roster Management"
+        subtitle="Changes save automatically."
+      />
 
       {/* SEARCH BAR - Matches Leagues Page Style */}
       <div style={{ marginBottom: '20px' }}>
@@ -133,8 +135,6 @@ export default function RosterManagement() {
 const styles = {
   container: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' as const },
   loader: { padding: '100px 20px', textAlign: 'center' as const },
-  header: { marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '15px' },
-  // Exact Search Input Style from Leagues Page
   searchInput: { 
     width: '100%', 
     padding: '12px 15px', 

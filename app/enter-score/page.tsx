@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import PageHeader from '../components/pageHeader' // Import shared component
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -190,8 +191,9 @@ export default function EnterScore() {
 
   if (!isAllowed) return (
     <div style={styles.container}>
-      <div style={{...styles.summary, textAlign: 'center' as const, marginTop: '50px'}}>
-        <h2>Scorecard Locked</h2><p>{statusMessage}</p>
+      <PageHeader title="Scorecard Locked" subtitle="Check-in Required" />
+      <div style={{...styles.summary, textAlign: 'center' as const, marginTop: '20px'}}>
+        <p>{statusMessage}</p>
         <button onClick={() => router.push('/account')} style={{...styles.btn, marginTop: '20px'}}>My Account</button>
       </div>
     </div>
@@ -199,7 +201,7 @@ export default function EnterScore() {
 
   if (groupMembers.length === 0) return (
     <div style={styles.container}>
-      <h2 style={{textAlign: 'center', marginBottom: '10px'}}>Select Partner</h2>
+      <PageHeader title="Select Partner" subtitle="Pairing Required" />
       <p style={{textAlign: 'center', fontSize: '14px', color: '#666', marginBottom: '25px'}}>Select the member you are playing with.</p>
       <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
         {availablePlayers.map(p => (
@@ -213,13 +215,17 @@ export default function EnterScore() {
 
   if (myScorecard) return (
     <div style={styles.container}>
-      <h1 style={{textAlign: 'center', marginBottom: '5px'}}>{course?.name}</h1>
+      <PageHeader 
+        title={course?.name || "Tournament"} 
+        subtitle="ROUND SUMMARY & ATTESTATION" 
+      />
+      
       <div style={styles.summary}>
         <h2 style={{margin: '0 0 10px 0', fontSize: '18px'}}>Your Round Summary</h2>
         <div style={styles.summaryRow}><strong>Gross:</strong> <span>{myScorecard.score}</span></div>
         <div style={styles.summaryRow}><strong>Net:</strong> <span style={{color: '#2e7d32', fontWeight: 'bold'}}>{myScorecard.net_score}</span></div>
         <p style={{fontSize: '11px', color: myScorecard.is_verified ? '#2e7d32' : '#d32f2f', marginTop: '10px', fontWeight: 'bold'}}>
-          {myScorecard.is_verified ? "✅ Verified by Group" : "⏳ Awaiting Verification"}
+          {myScorecard.is_verified ? "✅ Verified by Group" : "Awaiting Verification"}
         </p>
       </div>
       <hr style={{margin: '25px 0', border: '0', borderTop: '1px solid #ddd'}} />
@@ -228,7 +234,7 @@ export default function EnterScore() {
         const card = partnerScorecards.find(c => c.member_id === partnerMember.id);
         return (
           <div key={partnerMember.id} style={{...styles.summary, border: card?.is_verified ? '1px solid #ddd' : '1px solid #2e7d32', marginBottom: '15px'}}>
-            <h3 style={{margin: '0 0 10px 0', fontSize: '14px'}}>{partnerMember.display_name}</h3>
+            <h3 style={{margin: '0 0 10px 0', fontSize: '14px', color: '#000'}}>{partnerMember.display_name}</h3>
             {card ? (
               card.is_verified ? <p style={{color: '#2e7d32', textAlign: 'center', fontWeight: 'bold'}}>✅ Card Attested</p> :
               <>
@@ -236,7 +242,7 @@ export default function EnterScore() {
                   {activeIndices.map(idx => (
                     <div key={idx} style={styles.holeBox}>
                       <div style={styles.label}>H{idx+1}</div>
-                      <div style={{fontSize: '18px', fontWeight: 'bold'}}>{card.hole_scores[idx]}</div>
+                      <div style={{fontSize: '18px', fontWeight: 'bold', color: '#000'}}>{card.hole_scores[idx]}</div>
                     </div>
                   ))}
                 </div>
@@ -251,10 +257,14 @@ export default function EnterScore() {
 
   return (
     <div style={styles.container}>
-      <h1 style={{textAlign: 'center', marginBottom: '5px'}}>{course?.name}</h1>
-      <p style={{textAlign: 'center', color: '#2e7d32', fontWeight: 'bold', marginBottom: '10px'}}>WEEK {leagueSettings?.current_week} TOURNAMENT</p>
-      <div style={{background: '#f0f7f0', padding: '10px', borderRadius: '8px', border: '1px solid #c8e6c9', textAlign: 'center', marginBottom: '20px', fontSize: '14px'}}>
-        Group Members: <strong>{groupMembers.map(m => m.display_name).join(', ')}</strong>
+      <PageHeader 
+        title={course?.name || "Tournament"} 
+        subtitle={`WEEK ${leagueSettings?.current_week} • ${leagueSettings?.holes_to_play} HOLES • ${leagueSettings?.tee_color} TEES`}
+      />
+      
+      {/* Darkened "Playing with" line */}
+      <div style={{background: '#f0f7f0', padding: '10px', borderRadius: '8px', border: '1px solid #c8e6c9', textAlign: 'center', marginBottom: '20px', fontSize: '14px', color: '#000', fontWeight: 'bold'}}>
+        Playing with: {groupMembers.map(m => m.display_name).join(', ')}
       </div>
       
       {showFront9 && (
@@ -265,6 +275,7 @@ export default function EnterScore() {
               <div key={i} style={styles.holeBox}>
                 <div style={styles.label}>H{i+1}</div>
                 <div style={styles.parLabel}>P{par}</div>
+                <div style={styles.hcpLabel}>HCP {course?.handicap_values[i]}</div>
                 <div style={styles.popDots}>
                   {(() => {
                     const sideRank = isNineHoles ? Math.ceil(course.handicap_values[i] / 2) : course.handicap_values[i]
@@ -287,6 +298,7 @@ export default function EnterScore() {
               <div key={i+9} style={styles.holeBox}>
                 <div style={styles.label}>H{i+10}</div>
                 <div style={styles.parLabel}>P{par}</div>
+                <div style={styles.hcpLabel}>HCP {course?.handicap_values[i+9]}</div>
                 <div style={styles.popDots}>
                   {(() => {
                     const sideRank = isNineHoles ? Math.ceil(course.handicap_values[i+9] / 2) : course.handicap_values[i+9]
@@ -323,10 +335,11 @@ const styles = {
   container: { padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: 'sans-serif' as const },
   scoreRow: { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '20px' },
   holeBox: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', border: '1px solid #ddd', padding: '5px', borderRadius: '4px', background: '#fff' },
-  label: { fontSize: '10px', fontWeight: 'bold' as const },
-  parLabel: { fontSize: '11px', color: '#444', fontWeight: 'bold' as const },
+  label: { fontSize: '11px', fontWeight: 'bold' as const, color: '#000' },
+  parLabel: { fontSize: '10px', color: '#444', fontWeight: 'bold' as const },
+  hcpLabel: { fontSize: '9px', color: '#666' },
   popDots: { fontSize: '14px', color: '#2e7d32', height: '14px', lineHeight: '14px' },
-  input: { width: '100%', border: 'none', borderBottom: '2px solid #2e7d32', textAlign: 'center' as const, fontSize: '18px', padding: '5px 0', outline: 'none' },
+  input: { width: '100%', border: 'none', borderBottom: '2px solid #2e7d32', textAlign: 'center' as const, fontSize: '18px', padding: '5px 0', outline: 'none', color: '#000', fontWeight: 'bold' },
   summary: { background: '#f9f9f9', padding: '15px', borderRadius: '8px', color: '#222', margin: '20px 0' },
   summaryRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px' },
   btn: { width: '100%', padding: '15px', background: '#2e7d32', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' as const, cursor: 'pointer' }

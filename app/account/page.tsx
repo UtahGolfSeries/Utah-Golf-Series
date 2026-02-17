@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import PageHeader from '../components/pageHeader'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -10,18 +11,33 @@ export default function AccountPage() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
 
-  // State for toggling modes
   const [isEditing, setIsEditing] = useState(false)
   const [updating, setUpdating] = useState(false)
-
-  // Local state for the inputs
   const [displayName, setDisplayName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
+  
+  // NEW: State for winnings
+  const [earnings, setEarnings] = useState(0)
 
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name || '')
       setPhoneNumber(user.phone_number || '')
+      
+      // Fetch total winnings for this member
+      const fetchEarnings = async () => {
+        const { data } = await supabase
+          .from('scorecards')
+          .select('winnings')
+          .eq('member_id', user.id)
+          .eq('is_verified', true);
+        
+        if (data) {
+          const total = data.reduce((sum, row) => sum + (Number(row.winnings) || 0), 0);
+          setEarnings(total);
+        }
+      };
+      fetchEarnings();
     }
   }, [user])
 
@@ -54,11 +70,26 @@ export default function AccountPage() {
 
   return (
     <div style={styles.container}>
-      <h1 style={{ textAlign: 'center' }}>My Profile</h1>
+      <PageHeader 
+        title="My Profile" 
+        subtitle={user?.role === 'admin' ? "ADMINISTRATOR ACCOUNT" : "MEMBER ACCOUNT SETTINGS"}
+      />
 
       <div style={styles.card}>
         
-        {/* DISPLAY NAME */}
+        {/* CLUBHOUSE CREDIT BOX */}
+        {user?.role !== 'admin' && (
+          <div style={styles.earningsBox}>
+            <div style={{ flex: 1 }}>
+              <label style={{ ...styles.label, color: '#2e7d32' }}>Clubhouse Credit</label>
+              <p style={styles.earningsValue}>${(earnings || 0).toFixed(2)}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+               <span style={{ fontSize: '10px', color: '#2e7d32', fontWeight: 'bold' }}>SEASON TOTAL</span>
+            </div>
+          </div>
+        )}
+
         <div style={styles.infoGroup}>
           <label style={styles.label}>Display Name</label>
           {isEditing ? (
@@ -72,7 +103,6 @@ export default function AccountPage() {
           )}
         </div>
 
-        {/* PHONE NUMBER */}
         <div style={styles.infoGroup}>
           <label style={styles.label}>Phone Number</label>
           {isEditing ? (
@@ -87,13 +117,11 @@ export default function AccountPage() {
           )}
         </div>
 
-        {/* READ ONLY EMAIL */}
         <div style={styles.infoGroup}>
           <label style={styles.label}>Email Address</label>
           <p style={styles.value}>{user?.email}</p>
         </div>
 
-        {/* HANDICAP SECTION - Hidden for Admins */}
         {user?.role !== 'admin' && (
           <>
             <div style={styles.handicapBox}>
@@ -106,7 +134,6 @@ export default function AccountPage() {
           </>
         )}
 
-        {/* BUTTON ROW */}
         <div style={styles.buttonRow}>
           {isEditing ? (
             <>
@@ -136,9 +163,21 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
     border: '1px solid #eee' 
   },
+  // ADDED EARNINGS BOX STYLES HERE
+  earningsBox: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#e8f5e9',
+    padding: '15px',
+    borderRadius: '8px',
+    border: '1px solid #2e7d32',
+    marginBottom: '20px'
+  },
+  earningsValue: { fontSize: '28px', fontWeight: 'bold' as const, color: '#2e7d32', margin: 0 },
+  
   infoGroup: { marginBottom: '20px' },
   label: { fontSize: '11px', fontWeight: 'bold' as const, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
-  value: { fontSize: '16px', color: '#333', marginTop: '5px', fontWeight: '500' as const },
+  value: { fontSize: '16px', color: '#000', marginTop: '5px', fontWeight: 'bold' as const },
   input: {
     width: '100%',
     padding: '10px',
@@ -147,9 +186,9 @@ const styles = {
     border: '2px solid #2e7d32',
     marginTop: '5px',
     boxSizing: 'border-box' as const,
-    color: '#000000',
-    backgroundColor: '#ffffff',
-    fontWeight: '500' as const,
+    color: '#000',
+    backgroundColor: '#fff',
+    fontWeight: 'bold' as const,
     outline: 'none'
   },
   handicapBox: { 
@@ -163,7 +202,6 @@ const styles = {
   },
   handicapValue: { fontSize: '28px', fontWeight: 'bold' as const, color: '#1b5e20', margin: 0 },
   disclaimer: { fontSize: '11px', color: '#999', fontStyle: 'italic' as const, marginTop: '8px', textAlign: 'center' as const },
-  
   buttonRow: { display: 'flex', gap: '10px', marginTop: '25px' },
   editBtn: { flex: 1, padding: '12px', background: '#f5f5f5', color: '#333', border: '1px solid #ddd', borderRadius: '6px', fontWeight: 'bold' as const, cursor: 'pointer' },
   logoutBtn: { flex: 1, padding: '12px', background: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '6px', fontWeight: 'bold' as const, cursor: 'pointer' },
