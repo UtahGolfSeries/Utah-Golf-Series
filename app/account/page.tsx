@@ -16,7 +16,7 @@ export default function AccountPage() {
   const [displayName, setDisplayName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   
-  // NEW: State for winnings
+  // State for total winnings
   const [earnings, setEarnings] = useState(0)
 
   useEffect(() => {
@@ -24,20 +24,37 @@ export default function AccountPage() {
       setDisplayName(user.display_name || '')
       setPhoneNumber(user.phone_number || '')
       
-      // Fetch total winnings for this member
-      const fetchEarnings = async () => {
-        const { data } = await supabase
-          .from('scorecards')
-          .select('winnings')
-          .eq('member_id', user.id)
-          .eq('is_verified', true);
-        
-        if (data) {
-          const total = data.reduce((sum, row) => sum + (Number(row.winnings) || 0), 0);
-          setEarnings(total);
-        }
-      };
-      fetchEarnings();
+      const fetchMemberDataAndEarnings = async () => {
+  try {
+    const { data: memberProfile } = await supabase
+      .from('member')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (memberProfile) {
+      // 1. Fetch Winnings from Scorecards
+      const { data: scores } = await supabase
+        .from('scorecards')
+        .select('winnings')
+        .eq('member_id', memberProfile.id);
+
+      // 2. Fetch Spending from Transactions
+      const { data: trans } = await supabase
+        .from('clubhouse_transactions')
+        .select('amount')
+        .eq('member_id', memberProfile.id);
+
+      const totalWinnings = scores?.reduce((sum, s) => sum + (Number(s.winnings) || 0), 0) || 0;
+      const totalSpent = trans?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
+
+      // Current Balance = Winnings (positive) + Transactions (negative)
+      setEarnings(totalWinnings + totalSpent);
+    }
+  } catch (err) { console.error(err); }
+};
+
+      fetchMemberDataAndEarnings();
     }
   }, [user])
 
@@ -66,7 +83,7 @@ export default function AccountPage() {
     setUpdating(false)
   }
 
-  if (loading) return <div style={styles.container}>Loading Profile...</div>
+  if (loading) return <div style={styles.loader}>Loading Profile...</div>
 
   return (
     <div style={styles.container}>
@@ -82,7 +99,7 @@ export default function AccountPage() {
           <div style={styles.earningsBox}>
             <div style={{ flex: 1 }}>
               <label style={{ ...styles.label, color: '#2e7d32' }}>Clubhouse Credit</label>
-              <p style={styles.earningsValue}>${(earnings || 0).toFixed(2)}</p>
+              <p style={styles.earningsValue}>${Number(earnings || 0).toFixed(2)}</p>
             </div>
             <div style={{ textAlign: 'right' }}>
                <span style={{ fontSize: '10px', color: '#2e7d32', fontWeight: 'bold' }}>SEASON TOTAL</span>
@@ -156,6 +173,7 @@ export default function AccountPage() {
 
 const styles = {
   container: { padding: '20px', maxWidth: '400px', margin: '0 auto', fontFamily: 'sans-serif' as const },
+  loader: { padding: '100px 20px', textAlign: 'center' as const },
   card: { 
     background: '#fff', 
     padding: '25px', 
@@ -163,7 +181,6 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
     border: '1px solid #eee' 
   },
-  // ADDED EARNINGS BOX STYLES HERE
   earningsBox: {
     display: 'flex',
     alignItems: 'center',
@@ -174,7 +191,6 @@ const styles = {
     marginBottom: '20px'
   },
   earningsValue: { fontSize: '28px', fontWeight: 'bold' as const, color: '#2e7d32', margin: 0 },
-  
   infoGroup: { marginBottom: '20px' },
   label: { fontSize: '11px', fontWeight: 'bold' as const, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
   value: { fontSize: '16px', color: '#000', marginTop: '5px', fontWeight: 'bold' as const },
