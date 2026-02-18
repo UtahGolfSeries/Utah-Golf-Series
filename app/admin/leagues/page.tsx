@@ -15,7 +15,22 @@ export default function TournamentOps() {
   const [members, setMembers] = useState<any[]>([])
   const [currentWeek, setCurrentWeek] = useState<number>(1)
   const [viewingWeek, setViewingWeek] = useState<number>(0)
-  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null)
+
+  // Logic for Currency Masking
+  const formatCurrency = (amount: string) => {
+    const totalCents = parseInt(amount) || 0;
+    return (totalCents / 100).toFixed(2);
+  };
+
+  const handleTableWinningsChange = (cardId: string, newVal: string) => {
+    // Strip everything but numbers
+    const digits = newVal.replace(/\D/g, '')
+    const inputEl = document.getElementById(`win-${cardId}`) as HTMLInputElement;
+    if (inputEl) {
+      inputEl.value = formatCurrency(digits);
+    }
+  };
   
   const [viewState, setViewState] = useState<'checking' | 'authorized' | 'denied'>('checking')
   const [dataLoading, setDataLoading] = useState(false)
@@ -43,7 +58,6 @@ export default function TournamentOps() {
     }
   }, [user, authLoading, router])
 
-  // UPDATED: Standard handleWinningsChange logic
   const handleWinningsChange = async (cardId: string, amount: string) => {
     const numericAmount = parseFloat(amount) || 0;
     const { error } = await supabase
@@ -60,7 +74,6 @@ export default function TournamentOps() {
 
   const loadTournamentData = async () => {
     setDataLoading(true);
-    // Clear state to prevent ghost data from previous weeks
     setMembers([]); 
     try {
       const { data: courseData } = await supabase.from('courses').select('*').limit(1).single();
@@ -184,13 +197,26 @@ export default function TournamentOps() {
         setIsSubmittingManual(false);
         return;
     }
-
     const totalGross = relevantScores.reduce((a, b) => a + b, 0);
+    let totalPops = 0;
+    const effHcp = roundSettings.holes === 9 ? Math.floor(manualEntryPlayer.handicap_index / 2) : manualEntryPlayer.handicap_index;
+    course.handicap_values.forEach((hcpVal: number, idx: number) => {
+        const isPlaying = roundSettings.holes === 18 || (roundSettings.side === 'Back' ? idx >= 9 : idx < 9);
+        if (isPlaying) {
+            if (roundSettings.holes === 9) {
+                if (effHcp >= Math.ceil(hcpVal / 2)) totalPops++;
+                if (effHcp >= Math.ceil(hcpVal / 2) + 9) totalPops++;
+            } else {
+                if (effHcp >= hcpVal) totalPops++;
+                if (effHcp >= hcpVal + 18) totalPops++;
+            }
+        }
+    });
+    const netScore = totalGross - totalPops;
     const { error } = await supabase.from('scorecards').insert({
         member_id: manualEntryPlayer.id, week_number: viewingWeek, hole_scores: manualScores,
-        score: totalGross, holes_played: roundSettings.holes, tee_played: roundSettings.tee, side_played: roundSettings.side, is_verified: true 
+        score: totalGross, net_score: netScore, holes_played: roundSettings.holes, tee_played: roundSettings.tee, side_played: roundSettings.side, is_verified: true 
     });
-
     if (!error) {
         await supabase.from('member').update({ has_submitted_current_round: true }).eq('id', manualEntryPlayer.id);
         setManualEntryPlayer(null); loadTournamentData();
@@ -205,21 +231,11 @@ export default function TournamentOps() {
       const { error: settingsError } = await supabase.from('league_settings').update({ 
         current_week: nextWeek, holes_to_play: roundSettings.holes, tee_color: roundSettings.tee, side_to_play: roundSettings.side 
       }).eq('id', 1)
-      
       if (settingsError) throw settingsError;
       await supabase.from('member').update({ has_submitted_current_round: false, is_checked_in: false }).neq('role', 'admin')
-
-      setCurrentWeek(nextWeek); 
-      setViewingWeek(nextWeek); 
-      setShowModal(false); 
-      loadTournamentData();
+      setCurrentWeek(nextWeek); setViewingWeek(nextWeek); setShowModal(false); loadTournamentData();
       alert("New round started successfully!");
-    } catch (err: any) { 
-        console.error("New Round Error:", err);
-        alert("Error starting round: " + err.message); 
-    } finally { 
-        setIsGlobalUpdating(false);
-    }
+    } catch (err: any) { alert("Error: " + err.message); } finally { setIsGlobalUpdating(false); }
   }
 
   if (viewState === 'checking' || authLoading) return <div style={styles.loader}>Verifying Admin...</div>
@@ -244,15 +260,7 @@ export default function TournamentOps() {
       />
 
       <div style={styles.adminControlBar}>
-        <button 
-          onClick={() => setShowModal(true)} 
-          disabled={isGlobalUpdating || viewingWeek !== currentWeek} 
-          style={{
-            ...styles.newRoundBtn, 
-            opacity: viewingWeek !== currentWeek ? 0.5 : 1,
-            cursor: viewingWeek !== currentWeek ? 'not-allowed' : 'pointer'
-          }}
-        >
+        <button onClick={() => setShowModal(true)} disabled={isGlobalUpdating || viewingWeek !== currentWeek} style={styles.newRoundBtn}>
           {isGlobalUpdating ? 'Processing...' : `Start Week ${currentWeek + 1}`}
         </button>
       </div>
@@ -279,7 +287,7 @@ export default function TournamentOps() {
                     <th style={{ ...styles.th, width: '10%' }}>Status</th>
                     <th style={{ ...styles.th, width: '12%' }}>Round</th>
                     <th style={{ ...styles.th, width: '10%' }}>Net</th>
-                    <th style={{ ...styles.th, width: '15%' }}>Winnings ($)</th> 
+                    <th style={{ ...styles.th, width: '15%', textAlign: 'center' }}>Winnings ($)</th> 
                   </tr>
                 </thead>
                 <tbody>
@@ -320,23 +328,26 @@ export default function TournamentOps() {
                         </td>
                         <td style={styles.td}>
                           {m.weekScore ? (
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <span style={{ position: 'absolute', left: '5px', fontWeight: 'bold', color: '#2e7d32', fontSize: '12px' }}>$</span>
                               <input 
+                                id={`win-${m.weekScore.id}`}
                                 key={`${m.id}-${viewingWeek}`} 
-                                type="number" 
-                                step="0.01" 
+                                type="text" 
+                                inputMode="numeric"
                                 placeholder="0.00" 
-                                defaultValue={
-    m.weekScore.winnings !== null && m.weekScore.winnings !== undefined 
-      ? Number(m.weekScore.winnings).toFixed(2) 
-      : ''
-  }
+                                defaultValue={m.weekScore.winnings ? Number(m.weekScore.winnings).toFixed(2) : ''}
+                                onChange={(e) => handleTableWinningsChange(m.weekScore.id, e.target.value)}
                                 onBlur={(e) => handleWinningsChange(m.weekScore.id, e.target.value)}
-                                style={styles.tableWinningsInput}
+                                style={{...styles.tableWinningsInput, paddingLeft: '15px'}}
                               />
                             </div>
-                          ) : <span style={{ color: '#ccc', fontSize: '11px' }}>No Scorecard</span>}
+                          ) : (
+    /* This wrapper ensures the 'No Scorecard' text is also centered */
+    <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+      <span style={{ color: '#ccc', fontSize: '11px' }}>No Scorecard</span>
+    </div>
+                          )}
                         </td>
                       </tr>
                       {expandedPlayerId === m.id && m.weekScore?.hole_scores && course && (
@@ -467,17 +478,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   tableWrapper: { background: '#fff', borderRadius: '0 0 8px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
   th: { padding: '12px', background: '#f8f9fa', borderBottom: '1px solid #eee', color: '#000', fontSize: '11px', textTransform: 'uppercase', textAlign: 'left', fontWeight: 'bold' },
-  td: { padding: '12px', borderBottom: '1px solid #eee', fontSize: '13px', whiteSpace: 'nowrap' },
+  td: { padding: '12px', borderBottom: '1px solid #eee', fontSize: '13px', verticalAlign: 'middle', whiteSpace: 'nowrap' },
   tr: { borderBottom: '1px solid #eee' },
-  uncheckedBtn: { padding: '6px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#000', width: '90px',display: 'flex',alignItems: 'center',justifyContent: 'center', textAlign: 'center' },
-  checkedBtn: { padding: '6px 12px', background: '#d4edda', border: '1px solid #c3e6cb', color: '#155724', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', width: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
+  uncheckedBtn: { padding: '6px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#000', width: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  checkedBtn: { padding: '6px 12px', background: '#d4edda', border: '1px solid #c3e6cb', color: '#155724', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', width: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   badgeDone: { background: '#d1ecf1', color: '#0c5460', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' },
   badgePendingState: { background: '#fff3e0', color: '#ef6c00', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #ffe0b2' },
   badgeVerify: { background: '#e1f5fe', color: '#0288d1', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #b3e5fc' },
   badgeActive: { color: '#2e7d32', fontSize: '11px', fontWeight: 'bold' },
   resetBtn: { padding: '6px 10px', background: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' },
   manualEntryBtn: { padding: '6px 10px', background: '#e8f5e9', border: '1px solid #2e7d32', color: '#2e7d32', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', width: '70px' },
-  badgeFinished: { padding: '6px 12px', background: '#e9ecef', color: '#000', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #ccc' },
+  badgeFinished: { padding: '6px 12px', background: '#e9ecef', color: '#000', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #ccc'},
   weekSelect: { padding: '8px 12px', borderRadius: '6px', border: '1px solid #444', backgroundColor: '#333', fontSize: '14px', fontWeight: 'bold' as const, color: '#fff', outline: 'none' },
   netScoreBtn: { background: 'none', border: 'none', color: '#2e7d32', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px' },
   expandedRow: { backgroundColor: '#f1f8e9', padding: '15px' },
@@ -495,5 +506,5 @@ const styles: { [key: string]: React.CSSProperties } = {
   field: { marginBottom: '15px' },
   label: { fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', display: 'block' },
   select: { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #bbb', backgroundColor: '#fff', color: '#000' },
-  tableWinningsInput: { width: '100%', padding: '6px 6px 6px 15px', borderRadius: '4px', border: '1px solid #c8e6c9', fontSize: '13px', fontWeight: 'bold', color: '#000', outline: 'none', backgroundColor: '#f9f9f9', textAlign: 'right' }
+  tableWinningsInput: { width: '90px', padding: '6px 6px 6px 15px', borderRadius: '4px', border: '1px solid #c8e6c9', fontSize: '13px', fontWeight: 'bold', color: '#000', outline: 'none', backgroundColor: '#f9f9f9', textAlign: 'right' }
 };

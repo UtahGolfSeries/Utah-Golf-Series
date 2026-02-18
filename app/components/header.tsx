@@ -2,52 +2,60 @@
 
 import Link from 'next/link'
 import { useAuth } from "../context/AuthContext"
+import { usePathname } from 'next/navigation'
 
 export default function Header() {
   const { user, logout } = useAuth()
+  const pathname = usePathname()
 
-  // Helper variables to make the JSX cleaner
   const isAdmin = user?.role === 'admin'
   const isPlayer = user && user.role !== 'admin'
+  
+  // Helper to check if a link is active
+  const isActive = (path: string) => pathname === path
 
   return (
     <nav style={styles.nav}>
       <div style={styles.logoContainer}>
-        <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>
+        <Link href="/" style={styles.logoText}>
           UTAH GOLF SERIES
         </Link>
-        {/* ADMIN BADGE */}
         {isAdmin && (
           <span style={styles.adminBadge}>Admin</span>
         )}
       </div>
       
       <div style={styles.links}>
-        <Link href="/" style={styles.link}>Home</Link>
-        <Link href="/standings" style={styles.link}>Standings</Link>
-        <Link href="/account" style={styles.link}>My Account</Link>        
+        <Link href="/" style={isActive('/') ? styles.activeLink : styles.link}>Home</Link>
+        <Link href="/standings" style={isActive('/standings') ? styles.activeLink : styles.link}>Standings</Link>
         
         {user ? (
           <>
-            {/* ADMIN ONLY LINKS */}
+            {/* ADMIN ONLY LINKS - Now styled as regular links */}
             {isAdmin && (
               <>
-                <Link href="/admin/leagues" style={styles.adminLink}>Leagues</Link>
-                <Link href="/admin/members" style={styles.adminLink}>Members</Link>
+                <Link href="/admin/schedule" style={isActive('/admin/schedule') ? styles.activeLink : styles.link}>Schedule</Link>
+                <Link href="/admin/leagues" style={isActive('/admin/leagues') ? styles.activeLink : styles.link}>Leagues</Link>
+                <Link href="/admin/members" style={isActive('/admin/members') ? styles.activeLink : styles.link}>Members</Link>
+                <Link href="/account" style={isActive('/account') ? styles.activeLink : styles.link}>Account</Link>
               </>
             )}
 
-            {/* PLAYER ONLY LINK - Hidden for Admins */}
+            {/* PLAYER ONLY LINKS */}
             {isPlayer && (
-              <Link href="/enter-score" style={styles.link}>Enter Score</Link>
+              <>
+                <Link href="/schedule" style={isActive('/schedule') ? styles.activeLink : styles.link}>Schedule</Link>
+                <Link href="/enter-score" style={isActive('/enter-score') ? styles.activeLink : styles.link}>Enter Score</Link>
+                <Link href="/account" style={isActive('/account') ? styles.activeLink : styles.link}>My Locker</Link>
+              </>
             )}
             
             <button onClick={logout} style={styles.logoutBtn}>Logout</button>
           </>
         ) : (
           <>
-            <Link href="/login" style={styles.link}>Login</Link>
-            <Link href="/signup" style={styles.signUpBtn}>Sign Up</Link>
+            <Link href="/login" style={isActive('/login') ? styles.activeLink : styles.link}>Login</Link>
+            <Link href="/signup" style={styles.signUpBtn}>Join League</Link>
           </>
         )}
       </div>
@@ -57,49 +65,71 @@ export default function Header() {
 
 const styles = {
   nav: {
+    height: '70px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '1rem 2rem',
+    padding: '0 2rem',
     backgroundColor: '#1a1a1a',
     color: 'white',
+    borderBottom: '3px solid #2e7d32',
+    position: 'sticky' as const,
+    top: 0,
+    zIndex: 1000,
   },
   logoContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px'
   },
-  logo: { fontWeight: 'bold' as const, fontSize: '1.2rem' },
+  logoText: { 
+    color: 'white', 
+    textDecoration: 'none', 
+    fontWeight: '900' as const, 
+    fontSize: '18px', 
+    letterSpacing: '1px' 
+  },
   adminBadge: {
-    backgroundColor: '#4caf50',
+    backgroundColor: '#2e7d32',
     color: 'white',
     fontSize: '10px',
     fontWeight: 'bold' as const,
     padding: '2px 6px',
     borderRadius: '4px',
     textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px'
   },
-  links: { display: 'flex', alignItems: 'center', gap: '20px' },
-  link: { color: 'white', textDecoration: 'none', fontSize: '14px' },
-  
-  adminLink: {
-    color: '#4caf50', 
+  links: { display: 'flex', alignItems: 'center', gap: '25px' },
+  link: { 
+    color: '#bbb', 
+    textDecoration: 'none', 
+    fontSize: '14px', 
+    fontWeight: 'bold' as const,
+    transition: 'color 0.2s'
+  },
+  activeLink: {
+    color: '#fff',
     textDecoration: 'none',
     fontSize: '14px',
     fontWeight: 'bold' as const,
-    border: '1px solid #4caf50',
-    padding: '5px 10px',
-    borderRadius: '4px'
+    borderBottom: '2px solid #2e7d32',
+    paddingBottom: '5px'
   },
-
   logoutBtn: { 
-    background: 'none', border: '1px solid white', color: 'white', 
-    padding: '5px 10px', cursor: 'pointer', borderRadius: '4px',
-    fontSize: '14px'
+    background: 'transparent', 
+    border: '1px solid #444', 
+    color: 'white', 
+    padding: '6px 12px', 
+    cursor: 'pointer', 
+    borderRadius: '6px',
+    fontSize: '12px'
   },
   signUpBtn: {
-    backgroundColor: '#2e7d32', color: 'white', padding: '8px 16px',
-    borderRadius: '4px', textDecoration: 'none', fontSize: '14px'
+    backgroundColor: '#2e7d32', 
+    color: 'white', 
+    padding: '10px 18px',
+    borderRadius: '8px', 
+    textDecoration: 'none', 
+    fontSize: '14px',
+    fontWeight: 'bold' as const
   }
 }
