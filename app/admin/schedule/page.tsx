@@ -5,160 +5,162 @@ import PageHeader from '../../components/pageHeader'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
+const GAME_FORMATS = [
+  "Individual Stroke Play",
+  "Chicago",
+  "2-Man Best Ball",
+  "Stableford",
+  "Modified Stableford",
+  "Match Play",
+  "Scramble",
+  "Shamrock"
+];
+
+const TEES = ["White", "Blue", "Black", "Red"];
+const NINES = ["Front 9", "Back 9", "Full 18"];
+
 export default function AdminSchedule() {
   const [schedule, setSchedule] = useState<any[]>([])
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editData, setEditData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { 
-    fetchSchedule() 
+  useEffect(() => {
+    fetchSchedule()
   }, [])
 
   const fetchSchedule = async () => {
-    const { data, error } = await supabase
-      .from('schedule')
-      .select('*')
-      .order('week_number', { ascending: true })
-    
-    if (error) {
-      console.error("Error fetching schedule:", error.message)
-    } else if (data) {
-      setSchedule(data)
-    }
+    const { data } = await supabase.from('schedule').select('*').order('week_number', { ascending: true })
+    if (data) setSchedule(data)
     setLoading(false)
   }
 
-  const updateWeek = async (id: number, field: string, value: any) => {
+  const startEdit = (week: any) => {
+    setEditingId(week.id)
+    setEditData(week)
+  }
+
+  const saveEdit = async () => {
     const { error } = await supabase
       .from('schedule')
-      .update({ [field]: value })
-      .eq('id', id)
-    
-    if (!error) fetchSchedule()
+      .update({
+        game_name: editData.game_name,
+        tee_color: editData.tee_color,
+        course_nine: editData.course_nine,
+        week_date: editData.week_date
+      })
+      .eq('id', editingId)
+
+    if (!error) {
+      setEditingId(null)
+      fetchSchedule()
+    }
   }
 
-  const addWeek = async () => {
-    const nextWeekNum = schedule.length > 0 ? schedule[schedule.length - 1].week_number + 1 : 1
-    const { error } = await supabase.from('schedule').insert([
-      { 
-        week_number: nextWeekNum, 
-        week_date: new Date().toISOString().split('T')[0], // Default to today
-        game_name: 'Individual Stroke Play', 
-        course_nine: 'Front 9', 
-        tee_color: 'White',
-      }
-    ])
-    if (!error) fetchSchedule()
-  }
-
-  const removeWeek = async (id: number, weekNum: number) => {
-    if (!window.confirm(`Are you sure you want to remove Week ${weekNum}? This cannot be undone.`)) return
-    
-    const { error } = await supabase.from('schedule').delete().eq('id', id)
-    if (!error) fetchSchedule()
-  }
-
-  if (loading) return <div style={{padding: '50px', textAlign: 'center'}}>Loading Season Editor...</div>
+  if (loading) return <div style={styles.loader}>Loading Admin Tools...</div>
 
   return (
     <div style={styles.container}>
-      <PageHeader title="Season Setup" subtitle="MANAGE WEEKLY ROTATION AND GAMES" />
-      
-      <div style={styles.card}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={{...styles.th, width: '80px'}}>Week</th>
-              <th style={{...styles.th, width: '150px'}}>Date</th>
-              <th style={styles.th}>Game / Format</th>
-              <th style={styles.th}>Nine Holes</th>
-              <th style={styles.th}>Tees</th>
-              <th style={{...styles.th, width: '50px'}}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {schedule.map((wk) => (
-              <tr key={wk.id} style={styles.tr}>
-                {/* Darkened Week Numbers */}
-                <td style={styles.td}><strong style={{color: '#000'}}>#{wk.week_number}</strong></td>
-                {/* Added Calendar Date Element */}
-                <td style={styles.td}>
-                  <input 
-                    type="date"
-                    style={styles.dateInput}
-                    value={wk.week_date || ''}
-                    onChange={(e) => updateWeek(wk.id, 'week_date', e.target.value)}
-                  />
-                </td>
-                <td style={styles.td}>
-                  <input 
-                    style={styles.input} 
-                    value={wk.game_name} 
-                    onBlur={(e) => updateWeek(wk.id, 'game_name', e.target.value)}
-                    onChange={(e) => {
-                      const newSched = [...schedule];
-                      const target = newSched.find(s => s.id === wk.id);
-                      if (target) target.game_name = e.target.value;
-                      setSchedule(newSched);
-                    }}
-                  />
-                </td>
-                <td style={styles.td}>
-                  <select style={styles.select} value={wk.course_nine} onChange={(e) => updateWeek(wk.id, 'course_nine', e.target.value)}>
-                    <option value="Front 9">Front 9</option>
-                    <option value="Back 9">Back 9</option>
-                    <option value="Full 18">Full 18</option>
-                  </select>
-                </td>
-                <td style={styles.td}>
-                  <select style={styles.select} value={wk.tee_color} onChange={(e) => updateWeek(wk.id, 'tee_color', e.target.value)}>
-                    <option value="White">White</option>
-                    <option value="Blue">Blue</option>
-                    <option value="Black">Black</option>
-                    <option value="Red">Red</option>
-                  </select>
-                </td>
-                <td style={styles.td}>
-                  <button 
-                    onClick={() => removeWeek(wk.id, wk.week_number)} 
-                    style={styles.deleteBtn}
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <PageHeader title="Manage Schedule" subtitle="SET SEASON GAMES & PARAMETERS" />
 
-        <div style={styles.footer}>
-          <button onClick={addWeek} style={styles.addBtn}>
-            + Add Another Week
-          </button>
-        </div>
+      <div style={styles.list}>
+        {schedule.map((wk) => (
+          <div key={wk.id} style={styles.card}>
+            <div style={styles.weekNum}>WEEK {wk.week_number}</div>
+            
+            {editingId === wk.id ? (
+              <div style={styles.editContainer}>
+                <div style={styles.editGrid}>
+                  {/* Date Selection */}
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Date</label>
+                    <input 
+                      type="date" 
+                      style={styles.input}
+                      value={editData.week_date || ""}
+                      onChange={e => setEditData({...editData, week_date: e.target.value})}
+                    />
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Format</label>
+                    <select 
+                      style={styles.select} 
+                      value={editData.game_name} 
+                      onChange={e => setEditData({...editData, game_name: e.target.value})}
+                    >
+                      {GAME_FORMATS.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Section</label>
+                    <select 
+                      style={styles.select} 
+                      value={editData.course_nine} 
+                      onChange={e => setEditData({...editData, course_nine: e.target.value})}
+                    >
+                      {NINES.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Tees</label>
+                    <select 
+                      style={styles.select} 
+                      value={editData.tee_color} 
+                      onChange={e => setEditData({...editData, tee_color: e.target.value})}
+                    >
+                      {TEES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={styles.actions}>
+                  <button onClick={saveEdit} style={styles.saveBtn}>Save Changes</button>
+                  <button onClick={() => setEditingId(null)} style={styles.cancelBtn}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={styles.displayRow}>
+                <div style={styles.info}>
+                  <div style={styles.dateLabel}>{wk.week_date ? new Date(wk.week_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No Date'}</div>
+                  <div style={styles.gameTitle}>{wk.game_name}</div>
+                  <div style={styles.details}>{wk.course_nine} • {wk.tee_color} Tees</div>
+                </div>
+                <button onClick={() => startEdit(wk)} style={styles.editBtn}>Edit</button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
 const styles = {
-  container: { padding: '20px', maxWidth: '1000px', margin: '0 auto' },
-  card: { background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' as const },
-  th: { padding: '15px', background: '#f8f9fa', color: '#888', fontSize: '10px', textTransform: 'uppercase' as const, textAlign: 'left' as const, fontWeight: 'bold' as const },
-  td: { padding: '12px 15px', borderBottom: '1px solid #eee' },
-  tr: { verticalAlign: 'middle' as const },
-  input: { padding: '8px', border: '1px solid #ddd', borderRadius: '4px', width: '90%', color: '#000', fontSize: '13px' },
-  select: { padding: '8px', border: '1px solid #ddd', borderRadius: '4px', width: '100%', color: '#000', fontSize: '13px', backgroundColor: '#fff' },
-  deleteBtn: { background: 'none', border: 'none', color: '#ff4444', fontSize: '18px', cursor: 'pointer', opacity: 0.6 },
-  footer: { padding: '20px', textAlign: 'center' as const, backgroundColor: '#fdfdfd' },
-  dateInput: { 
-    padding: '6px', 
-    border: '1px solid #ddd', 
-    borderRadius: '4px', 
-    fontSize: '13px', 
-    fontFamily: 'sans-serif',
-    color: '#000',
-    width: '100%'
-  },
-  addBtn: { background: '#2e7d32', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' as const, fontSize: '14px' }
+  container: { padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' },
+  loader: { textAlign: 'center' as const, padding: '50px', color: '#000' },
+  list: { display: 'flex', flexDirection: 'column' as const, gap: '15px' },
+  card: { background: '#fff', border: '1px solid #ddd', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'flex-start', gap: '25px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', minHeight: '100px' },
+  weekNum: { background: '#000', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' as const, minWidth: '45px', textAlign: 'center' as const, marginTop: '5px' },
+  displayRow: { display: 'flex', flex: 1, justifyContent: 'space-between', alignItems: 'center' },
+  info: { flex: 1 },
+  dateLabel: { fontSize: '12px', fontWeight: 'bold' as const, color: '#2e7d32', textTransform: 'uppercase' as const, marginBottom: '2px' },
+  gameTitle: { fontWeight: '900' as const, fontSize: '18px', color: '#000' },
+  details: { fontSize: '13px', color: '#444', fontWeight: 'bold' as const },
+  editBtn: { background: '#f5f5f5', border: '1px solid #ddd', color: '#000', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' as const },
+  
+  // NEW WRAPPER FOR EDITING
+  editContainer: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: '20px' },
+  editGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', width: '100%' },
+  
+  inputGroup: { display: 'flex', flexDirection: 'column' as const, gap: '5px' },
+  label: { fontSize: '10px', fontWeight: 'bold' as const, color: '#666', textTransform: 'uppercase' as const },
+  select: { padding: '10px', borderRadius: '6px', border: '1px solid #000', fontSize: '13px', color: '#000', backgroundColor: '#fff', width: '100%' },
+  input: { padding: '10px', borderRadius: '6px', border: '1px solid #000', fontSize: '13px', color: '#000', backgroundColor: '#fff', width: '100%' },
+  
+  actions: { display: 'flex', gap: '10px', borderTop: '1px solid #eee', paddingTop: '15px', justifyContent: 'flex-end' },
+  saveBtn: { background: '#2e7d32', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' as const, fontSize: '13px' },
+  cancelBtn: { background: '#fff', border: '1px solid #000', color: '#000', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' as const, fontSize: '13px' }
 }

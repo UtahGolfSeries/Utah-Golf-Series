@@ -13,10 +13,12 @@ export default function HomePage() {
         <div style={styles.heroOverlay}>
           <h1 style={styles.heroTitle}>UTAH GOLF SERIES</h1>
           <p style={styles.heroSubtitle}>The Premier Amateur Competition in the Beehive State.</p>
+          
+          {/* UPDATED: Only show these to logged-out visitors */}
           {!user && !loading && (
             <div style={styles.heroActions}>
               <Link href="/signup" style={styles.primaryBtn}>Join the Series</Link>
-              <Link href="/standings" style={styles.secondaryBtn}>View Standings</Link>
+              <Link href="/login" style={styles.secondaryBtn}>Sign In</Link>
             </div>
           )}
         </div>
@@ -96,8 +98,8 @@ const styles = {
   heroActions: { display: 'flex', gap: '15px', justifyContent: 'center' },
   
   // BUTTONS
-  primaryBtn: { background: '#2e7d32', color: '#fff', padding: '14px 28px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' as const, fontSize: '16px' },
-  secondaryBtn: { background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '14px 28px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' as const, fontSize: '16px', border: '1px solid #fff' },
+  primaryBtn: { background: '#2e7d32', color: '#fff', padding: '14px 28px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' as const, fontSize: '16px', width: '200pt' },
+  secondaryBtn: { background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '14px 28px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' as const, fontSize: '16px', border: '1px solid #fff', width: '200pt' },
 
   // DASHBOARD STYLES
   dashboardSection: { padding: '60px 20px', maxWidth: '1000px', margin: '0 auto' },

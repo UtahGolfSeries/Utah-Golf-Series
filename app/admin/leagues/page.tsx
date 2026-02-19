@@ -11,6 +11,8 @@ export default function TournamentOps() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [course, setCourse] = useState<any>(null);
+
+
   
   const [members, setMembers] = useState<any[]>([])
   const [currentWeek, setCurrentWeek] = useState<number>(1)
@@ -225,18 +227,62 @@ export default function TournamentOps() {
   }
 
   const confirmStartNewRound = async () => {
-    setIsGlobalUpdating(true)
-    try {
-      const nextWeek = currentWeek + 1
-      const { error: settingsError } = await supabase.from('league_settings').update({ 
-        current_week: nextWeek, holes_to_play: roundSettings.holes, tee_color: roundSettings.tee, side_to_play: roundSettings.side 
-      }).eq('id', 1)
-      if (settingsError) throw settingsError;
-      await supabase.from('member').update({ has_submitted_current_round: false, is_checked_in: false }).neq('role', 'admin')
-      setCurrentWeek(nextWeek); setViewingWeek(nextWeek); setShowModal(false); loadTournamentData();
-      alert("New round started successfully!");
-    } catch (err: any) { alert("Error: " + err.message); } finally { setIsGlobalUpdating(false); }
+  setIsGlobalUpdating(true)
+  try {
+    const nextWeekNumber = currentWeek + 1;
+
+    // 1. Fetch using your actual column names: course_nine and tee_color
+    const { data: nextWeekSchedule } = await supabase
+      .from('schedule')
+      .select('course_nine, tee_color')
+      .eq('week_number', nextWeekNumber)
+      .single();
+
+    // 2. Logic to translate "Front 9", "Back 9", "Full 18" into holes and side
+    let holes = 18;
+    let side = 'All';
+
+    if (nextWeekSchedule?.course_nine === 'Front 9') {
+      holes = 9;
+      side = 'Front';
+    } else if (nextWeekSchedule?.course_nine === 'Back 9') {
+      holes = 9;
+      side = 'Back';
+    }
+
+    // 3. Update League Settings
+    const { error: settingsError } = await supabase
+      .from('league_settings')
+      .update({ 
+        current_week: nextWeekNumber, 
+        holes_to_play: holes, 
+        tee_color: nextWeekSchedule?.tee_color || 'White', 
+        side_to_play: side 
+      })
+      .eq('id', 1);
+
+    if (settingsError) throw settingsError;
+
+    // 4. Reset members
+    await supabase
+      .from('member')
+      .update({ has_submitted_current_round: false, is_checked_in: false })
+      .neq('role', 'admin');
+
+    setCurrentWeek(nextWeekNumber);
+    setViewingWeek(nextWeekNumber);
+    setShowModal(false);
+    loadTournamentData();
+    
+    const source = nextWeekSchedule ? "Schedule Tab" : "Fallbacks";
+    alert(`Week ${nextWeekNumber} successfully started via ${source}! Setting: ${holes} holes, ${side}, ${nextWeekSchedule?.tee_color || 'White'} tees.`);
+
+  } catch (err: any) {
+    alert("Error: " + err.message);
+  } finally {
+    setIsGlobalUpdating(false);
   }
+}
 
   if (viewState === 'checking' || authLoading) return <div style={styles.loader}>Verifying Admin...</div>
 
@@ -425,43 +471,22 @@ export default function TournamentOps() {
 
       {/* CONFIG MODAL */}
       {showModal && (
-        <div style={styles.modalOverlay}>
-            <div style={styles.modalContent}>
-                <h2 style={styles.modalTitle}>Configure Week {currentWeek + 1}</h2>
-                <div style={styles.field}>
-                    <label style={styles.label}>Holes</label>
-                    <select style={styles.select} value={roundSettings.holes} onChange={(e) => setRoundSettings({...roundSettings, holes: Number(e.target.value), side: Number(e.target.value) === 18 ? 'All' : 'Front'})}>
-                        <option value="18">18 Holes</option>
-                        <option value="9">9 Holes</option>
-                    </select>
-                </div>
-                {roundSettings.holes === 9 && (
-                    <div style={styles.field}>
-                        <label style={styles.label}>Side</label>
-                        <select style={styles.select} value={roundSettings.side} onChange={(e) => setRoundSettings({...roundSettings, side: e.target.value})}>
-                            <option value="Front">Front 9</option>
-                            <option value="Back">Back 9</option>
-                        </select>
-                    </div>
-                )}
-                <div style={styles.field}>
-                    <label style={styles.label}>Tees</label>
-                    <select style={styles.select} value={roundSettings.tee} onChange={(e) => setRoundSettings({...roundSettings, tee: e.target.value})}>
-                        <option value="White">White</option>
-                        <option value="Blue">Blue</option>
-                        <option value="Black">Black</option>
-                        <option value="Red">Red</option>
-                    </select>
-                </div>
-                <div style={styles.modalActions}>
-                    <button onClick={() => setShowModal(false)} style={styles.cancelBtn}>Cancel</button>
-                    <button onClick={confirmStartNewRound} style={styles.confirmBtn} disabled={isGlobalUpdating}>
-                        {isGlobalUpdating ? 'Updating...' : 'Start Round'}
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
+  <div style={styles.modalOverlay}>
+    <div style={styles.modalContent}>
+      <h2 style={styles.modalTitle}>Start Week {currentWeek + 1}</h2>
+      <p style={{marginBottom: '20px', color: '#444'}}>
+        This will advance the league to the next week using the course and 
+        parameters you defined in the <strong>Schedule Tab</strong>.
+      </p>
+      <div style={styles.modalActions}>
+        <button onClick={() => setShowModal(false)} style={styles.cancelBtn}>Cancel</button>
+        <button onClick={confirmStartNewRound} style={styles.confirmBtn} disabled={isGlobalUpdating}>
+          {isGlobalUpdating ? 'Syncing Schedule...' : 'Confirm & Start'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }

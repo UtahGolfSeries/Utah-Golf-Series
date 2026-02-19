@@ -27,13 +27,13 @@ export default function Header() {
       
       <div style={styles.links}>
         <Link href="/" style={isActive('/') ? styles.activeLink : styles.link}>Home</Link>
-        <Link href="/standings" style={isActive('/standings') ? styles.activeLink : styles.link}>Standings</Link>
         
         {user ? (
           <>
             {/* ADMIN ONLY LINKS - Now styled as regular links */}
             {isAdmin && (
               <>
+                <Link href="/standings" style={isActive('/standings') ? styles.activeLink : styles.link}>Standings</Link>
                 <Link href="/admin/schedule" style={isActive('/admin/schedule') ? styles.activeLink : styles.link}>Schedule</Link>
                 <Link href="/admin/leagues" style={isActive('/admin/leagues') ? styles.activeLink : styles.link}>Leagues</Link>
                 <Link href="/admin/members" style={isActive('/admin/members') ? styles.activeLink : styles.link}>Members</Link>
@@ -44,6 +44,7 @@ export default function Header() {
             {/* PLAYER ONLY LINKS */}
             {isPlayer && (
               <>
+                <Link href="/standings" style={isActive('/standings') ? styles.activeLink : styles.link}>Standings</Link>
                 <Link href="/schedule" style={isActive('/schedule') ? styles.activeLink : styles.link}>Schedule</Link>
                 <Link href="/enter-score" style={isActive('/enter-score') ? styles.activeLink : styles.link}>Enter Score</Link>
                 <Link href="/account" style={isActive('/account') ? styles.activeLink : styles.link}>My Locker</Link>

@@ -9,14 +9,12 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 export default function Standings() {
   const { user } = useAuth()
   
-  // State for logic
-  const [viewMode, setViewMode] = useState<'weekly' | 'season'>('weekly')
+  const [viewMode, setViewMode] = useState<'weekly' | 'season'>('season')
   const [standings, setStandings] = useState<any[]>([])
   const [currentWeek, setCurrentWeek] = useState<number>(1)
   const [viewingWeek, setViewingWeek] = useState<number>(0)
   const [loading, setLoading] = useState(true)
 
-  // 1. Initial Load: Get current week
   useEffect(() => {
     const getInitialSettings = async () => {
       const { data: settings } = await supabase.from('league_settings').select('current_week').eq('id', 1).single()
@@ -28,7 +26,6 @@ export default function Standings() {
     getInitialSettings()
   }, [])
 
-  // 2. Data Fetching Logic
   useEffect(() => {
     if (viewingWeek === 0) return
 
@@ -36,26 +33,21 @@ export default function Standings() {
       setLoading(true)
       try {
         if (viewMode === 'weekly') {
-          // WEEKLY VIEW FETCH
           const { data: scores } = await supabase
             .from('scorecards')
-            .select(`score, net_score, is_verified, member!member_id (display_name, flight)`)
+            .select(`score, net_score, points, is_verified, member!member_id (display_name, flight)`)
             .eq('week_number', viewingWeek)
             .eq('is_verified', true)
             .order('net_score', { ascending: true })
           if (scores) setStandings(scores)
         } else {
-          // SEASON VIEW FETCH
-          // We fetch all verified scores for the whole season
           const { data: allScores } = await supabase
             .from('scorecards')
-            .select(`week_number, net_score, member_id, member!member_id (display_name, flight)`)
+            .select(`points, member_id, member!member_id (display_name, flight)`)
             .eq('is_verified', true)
-            .order('week_number', { ascending: true })
 
           if (allScores) {
-            // Group and rank members by week and flight
-            const processedSeason = processSeasonData(allScores)
+            const processedSeason = processSeasonPoints(allScores)
             setStandings(processedSeason)
           }
         }
@@ -69,36 +61,24 @@ export default function Standings() {
     fetchData()
   }, [viewMode, viewingWeek])
 
-  // Helper to calculate rank/place per week/flight
-  const processSeasonData = (data: any[]) => {
-    const results: any = {} // { memberId: { name, flight, weeks: { 1: rank, 2: rank } } }
+  const processSeasonPoints = (data: any[]) => {
+    const results: any = {}
 
-    // First, find unique weeks
-    const weeksInSeason = Array.from(new Set(data.map(d => d.week_number)))
-
-    weeksInSeason.forEach(wNum => {
-      const flights = ['A', 'B', 'C', 'D']
-      flights.forEach(f => {
-        // Filter scores for this specific week and flight
-        const flightScores = data
-          .filter(d => d.week_number === wNum && d.member?.flight === f)
-          .sort((a, b) => a.net_score - b.net_score)
-
-        // Assign Rank (Place)
-        flightScores.forEach((score, index) => {
-          if (!results[score.member_id]) {
-            results[score.member_id] = { 
-              name: score.member.display_name, 
-              flight: score.member.flight, 
-              weeks: {} 
-            }
-          }
-          results[score.member_id].weeks[wNum] = index + 1 // "1st", "2nd", etc.
-        } )
-      })
+    data.forEach(entry => {
+      const mId = entry.member_id
+      if (!results[mId]) {
+        results[mId] = { 
+          name: entry.member.display_name, 
+          flight: entry.member.flight, 
+          totalPoints: 0,
+          eventsPlayed: 0
+        }
+      }
+      results[mId].totalPoints += (Number(entry.points) || 0)
+      results[mId].eventsPlayed += 1 
     })
 
-    return Object.values(results)
+    return Object.values(results).sort((a: any, b: any) => b.totalPoints - a.totalPoints)
   }
 
   const flights = ['A', 'B', 'C', 'D']
@@ -106,11 +86,10 @@ export default function Standings() {
   return (
     <div style={styles.container}>
       <PageHeader 
-        title={viewMode === 'weekly' ? `Week ${viewingWeek} Standings` : "Season Standings"}
-        subtitle={viewMode === 'weekly' ? "WEEKLY PERFORMANCE" : "OVERALL SEASON FINISHES"}
+        title={viewMode === 'weekly' ? `Week ${viewingWeek} Leaderboard` : "Season Standings"}
+        subtitle={viewMode === 'weekly' ? "ROUND RESULTS" : "UTAH GOLF SERIES POINTS RACE"}
         rightElement={
           <div style={styles.headerControls}>
-             {/* TOGGLE BUTTONS */}
              <div style={styles.toggleGroup}>
                 <button 
                   onClick={() => setViewMode('weekly')} 
@@ -123,25 +102,22 @@ export default function Standings() {
              </div>
 
             {viewMode === 'weekly' && (
-              <>
-                <label style={styles.selectorLabel}>Jump to Week:</label>
-                <select 
-                  value={viewingWeek} 
-                  onChange={(e) => setViewingWeek(Number(e.target.value))}
-                  style={styles.weekSelect}
-                >
-                  {Array.from({ length: currentWeek }, (_, i) => i + 1).map(w => (
-                    <option key={w} value={w}>Week {w}</option>
-                  ))}
-                </select>
-              </>
+              <select 
+                value={viewingWeek} 
+                onChange={(e) => setViewingWeek(Number(e.target.value))}
+                style={styles.weekSelect}
+              >
+                {Array.from({ length: currentWeek }, (_, i) => i + 1).map(w => (
+                  <option key={w} value={w}>Week {w}</option>
+                ))}
+              </select>
             )}
           </div>
         }
       />
 
       {loading ? (
-        <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>Updating standings...</div>
+        <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>Loading Rankings...</div>
       ) : (
         <>
           {flights.map(flightLabel => {
@@ -157,19 +133,18 @@ export default function Standings() {
                   <table style={styles.table}>
                     <thead>
                       <tr style={styles.thRow}>
+                        <th style={{...styles.th, width: '60px'}}>Rank</th>
+                        <th style={{...styles.th, width: '300px'}}>Player</th>
                         {viewMode === 'weekly' ? (
                           <>
-                            <th style={{...styles.th, width: '15%'}}>Pos</th>
-                            <th style={{...styles.th, width: '55%'}}>Player</th>
-                            <th style={{...styles.th, width: '15%'}}>Gross</th>
-                            <th style={{...styles.th, width: '15%'}}>Net</th>
+                            <th style={{...styles.th}}>Net</th>
+                            <th style={{...styles.th, textAlign: 'center'}}>Pts</th>
                           </>
                         ) : (
                           <>
-                            <th style={{...styles.th, width: '40%'}}>Player</th>
-                            {Array.from({ length: currentWeek }, (_, i) => i + 1).map(w => (
-                              <th key={w} style={{...styles.th, textAlign: 'center'}}>W{w}</th>
-                            ))}
+                            {/* Swapped: Points on Left, Events on Right */}
+                            <th style={{...styles.th, textAlign: 'center', color: '#2e7d32'}}>Total Pts</th>
+                            <th style={{...styles.th, textAlign: 'center'}}>Events Played</th>
                           </>
                         )}
                       </tr>
@@ -177,25 +152,23 @@ export default function Standings() {
                     <tbody>
                       {flightScores.map((entry, index) => (
                         <tr key={index} style={styles.tr}>
+                          <td style={styles.rankCell}>{index + 1}</td>
+                          <td style={styles.playerCell}>{viewMode === 'weekly' ? entry.member?.display_name : entry.name}</td>
+                          
                           {viewMode === 'weekly' ? (
                             <>
-                              <td style={styles.td}>{index + 1}</td>
-                              <td style={{...styles.td, fontWeight: 'bold', color: '#000'}}>{entry.member?.display_name}</td>
-                              <td style={styles.td}>{entry.score}</td>
-                              <td style={{...styles.td, color: '#2e7d32', fontWeight: 'bold'}}>{entry.net_score}</td>
+                              <td style={styles.td}>{entry.net_score}</td>
+                              <td style={{...styles.td, textAlign: 'center', fontWeight: 'bold'}}>{entry.points}</td>
                             </>
                           ) : (
                             <>
-                              <td style={{...styles.td, fontWeight: 'bold', color: '#000'}}>{entry.name}</td>
-                              {Array.from({ length: currentWeek }, (_, i) => i + 1).map(w => (
-                                <td key={w} style={{...styles.td, textAlign: 'center'}}>
-                                  {entry.weeks[w] ? (
-                                    <span style={entry.weeks[w] === 1 ? styles.firstPlace : styles.otherPlace}>
-                                      {entry.weeks[w]}
-                                    </span>
-                                  ) : '-'}
-                                </td>
-                              ))}
+                              {/* Swapped Data Cells */}
+                              <td style={{...styles.td, textAlign: 'center', fontWeight: '900', color: '#2e7d32', backgroundColor: '#f9fcf9'}}>
+                                {entry.totalPoints}
+                              </td>
+                              <td style={{...styles.td, textAlign: 'center', color: '#888'}}>
+                                {entry.eventsPlayed}
+                              </td>
                             </>
                           )}
                         </tr>
@@ -213,27 +186,20 @@ export default function Standings() {
 }
 
 const styles = {
-  container: { padding: '20px', maxWidth: '850px', margin: '0 auto', fontFamily: 'sans-serif' as const },
+  container: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' as const },
   headerControls: { display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: '8px' },
-  toggleGroup: { display: 'flex', background: '#333', borderRadius: '6px', padding: '2px', marginBottom: '5px' },
-  activeToggle: { background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold' as const, cursor: 'pointer' },
-  inactiveToggle: { background: 'transparent', color: '#bbb', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer' },
-  
-  selectorLabel: { fontSize: '9px', color: '#999', textTransform: 'uppercase' as const, marginBottom: '2px' },
-  weekSelect: { 
-    padding: '6px 10px', borderRadius: '6px', border: '1px solid #444', backgroundColor: '#333', 
-    fontSize: '13px', fontWeight: 'bold' as const, color: '#fff', outline: 'none'
-  },
+  toggleGroup: { display: 'flex', background: '#333', borderRadius: '6px', padding: '2px' },
+  activeToggle: { background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold' as const, cursor: 'pointer' },
+  inactiveToggle: { background: 'transparent', color: '#bbb', border: 'none', borderRadius: '4px', padding: '5px 12px', fontSize: '12px', cursor: 'pointer' },
+  weekSelect: { padding: '6px', borderRadius: '6px', border: '1px solid #444', backgroundColor: '#333', color: '#fff', fontSize: '12px' },
   section: { marginBottom: '30px' },
-  flightHeader: { background: '#1a1a1a', color: '#fff', padding: '10px 15px', borderRadius: '8px 8px 0 0', fontWeight: 'bold' as const, fontSize: '15px' },
-  tableWrapper: { background: '#fff', border: '1px solid #ddd', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' },
+  flightHeader: { background: '#111', color: '#fff', padding: '12px 15px', borderRadius: '8px 8px 0 0', fontWeight: 'bold' as const, fontSize: '14px', letterSpacing: '1px' },
+  tableWrapper: { background: '#fff', border: '1px solid #eee', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
   table: { width: '100%', borderCollapse: 'collapse' as const },
-  thRow: { background: '#f8f9fa', borderBottom: '1px solid #eee' },
-  th: { padding: '12px', fontSize: '10px', color: '#888', textAlign: 'left' as const, textTransform: 'uppercase' as const, fontWeight: 'bold' as const },
-  td: { padding: '12px', borderBottom: '1px solid #eee', fontSize: '13px', color: '#444' },
+  thRow: { background: '#fafafa', borderBottom: '1px solid #eee' },
+  th: { width: '150px', padding: '12px 15px', fontSize: '10px', color: '#999', textAlign: 'left' as const, textTransform: 'uppercase' as const, fontWeight: 'bold' as const },
+  td: { padding: '12px 15px', borderBottom: '1px solid #eee', fontSize: '14px', color: '#333' },
   tr: { background: '#fff' },
-
-  // Placement Styling
-  firstPlace: { background: '#fff3e0', color: '#ef6c00', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' as const, border: '1px solid #ffe0b2' },
-  otherPlace: { fontWeight: 'bold' as const, color: '#000' }
+  rankCell: { padding: '12px 15px', borderBottom: '1px solid #eee', fontWeight: 'bold' as const, color: '#2e7d32', textAlign: 'center' as const },
+  playerCell: { padding: '12px 15px', borderBottom: '1px solid #eee', fontWeight: 'bold' as const, color: '#000' }
 }
