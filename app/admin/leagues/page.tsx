@@ -98,17 +98,17 @@ export default function TournamentOps() {
       const { data: memberData, error: fetchError } = await supabase
         .from('member')
         .select(`
-          id, 
-          display_name, 
-          handicap_index, 
-          flight, 
-          is_checked_in, 
-          has_submitted_current_round, 
-          scorecards!member_id (
-           id, score, net_score, week_number, winnings, holes_played, 
-            tee_played, side_played, hole_scores, created_at, is_verified
-           )
-        `)
+  id, 
+  display_name, 
+  handicap_index, 
+  flight, 
+  is_checked_in, 
+  has_submitted_current_round, 
+  scorecards!member_id (
+    id, gross_score, net_score, points, week_number, winnings, holes_played, 
+    tee_played, side_played, hole_scores, created_at, is_verified
+  )
+`)
         .neq('role', 'admin')
         .order('display_name', { ascending: true });
 
@@ -186,7 +186,7 @@ export default function TournamentOps() {
     if (!window.confirm("Delete score for this week?")) return
     try {
       await supabase.from('scorecards').delete().match({ member_id: memberId, week_number: viewingWeek })
-      await supabase.from('member').update({ has_submitted_current_round: false }).eq('id', memberId)
+     await supabase.from('member').update({ has_submitted_current_round: false }).eq('id', memberId)
       loadTournamentData();
     } catch (err: any) { console.error("Reset error:", err.message) }
   }
@@ -216,9 +216,16 @@ export default function TournamentOps() {
     });
     const netScore = totalGross - totalPops;
     const { error } = await supabase.from('scorecards').insert({
-        member_id: manualEntryPlayer.id, week_number: viewingWeek, hole_scores: manualScores,
-        score: totalGross, net_score: netScore, holes_played: roundSettings.holes, tee_played: roundSettings.tee, side_played: roundSettings.side, is_verified: true 
-    });
+    member_id: manualEntryPlayer.id, 
+    week_number: viewingWeek, 
+    hole_scores: manualScores,
+    gross_score: totalGross, // Changed from score to gross_score
+    net_score: netScore, 
+    holes_played: roundSettings.holes, 
+    tee_played: roundSettings.tee, 
+    side_played: roundSettings.side, 
+    is_verified: true 
+});
     if (!error) {
         await supabase.from('member').update({ has_submitted_current_round: true }).eq('id', manualEntryPlayer.id);
         setManualEntryPlayer(null); loadTournamentData();

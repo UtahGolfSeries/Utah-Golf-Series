@@ -1,8 +1,9 @@
 import { AuthProvider } from "./context/AuthContext"
-import Header from "./components/header" // 1. Import your new Header
+import Header from "./components/header"
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Footer from './components/footer'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Utah Golf Series", // 2. Updated title for your project
+  title: "Utah Golf Series",
   description: "Official Member Portal",
 };
 
@@ -26,12 +27,26 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      {/* Added flex styles to the body to handle the "Sticky Footer" logic */}
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable}`}
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          minHeight: '100vh', 
+          margin: 0 
+        }}
+      >
         <AuthProvider>
           <Header /> 
-          <main>
+          
+          {/* flex: 1 tells the main content to grow and push the footer down */}
+          <main style={{ flex: 1 }}>
             {children}
           </main>
+
+          {/* 3. Added the Footer here! */}
+          <Footer />
         </AuthProvider>
       </body>
     </html>

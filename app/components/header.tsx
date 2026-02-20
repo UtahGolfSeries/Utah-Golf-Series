@@ -34,6 +34,7 @@ export default function Header() {
             {isAdmin && (
               <>
                 <Link href="/standings" style={isActive('/standings') ? styles.activeLink : styles.link}>Standings</Link>
+                <Link href="/admin/courses" style={isActive('/admin/courses') ? styles.activeLink : styles.link}>Courses</Link>
                 <Link href="/admin/schedule" style={isActive('/admin/schedule') ? styles.activeLink : styles.link}>Schedule</Link>
                 <Link href="/admin/leagues" style={isActive('/admin/leagues') ? styles.activeLink : styles.link}>Leagues</Link>
                 <Link href="/admin/members" style={isActive('/admin/members') ? styles.activeLink : styles.link}>Members</Link>

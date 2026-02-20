@@ -12,12 +12,12 @@ export default function HomePage() {
       <section style={styles.hero}>
         <div style={styles.heroOverlay}>
           <h1 style={styles.heroTitle}>UTAH GOLF SERIES</h1>
-          <p style={styles.heroSubtitle}>The Premier Amateur Competition in the Beehive State.</p>
+          <p style={styles.heroSubtitle}>The Premier League in the Beehive State.</p>
           
           {/* UPDATED: Only show these to logged-out visitors */}
           {!user && !loading && (
             <div style={styles.heroActions}>
-              <Link href="/signup" style={styles.primaryBtn}>Join the Series</Link>
+              <Link href="/signup" style={styles.primaryBtn}>Become A Member</Link>
               <Link href="/login" style={styles.secondaryBtn}>Sign In</Link>
             </div>
           )}
@@ -79,7 +79,7 @@ export default function HomePage() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#fff', fontFamily: 'sans-serif' },
+  container: { backgroundColor: '#fff', fontFamily: 'sans-serif' },
   
   // HERO STYLES
   hero: {

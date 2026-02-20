@@ -14,18 +14,16 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const { signup } = useAuth()
+  // NEW: State for the modal and resend status
+  const [showModal, setShowModal] = useState(false)
+  const [resent, setResent] = useState(false)
+  
+  const { signup, resendVerification } = useAuth()
   const router = useRouter()
 
-  // NEW: Phone Number Formatter Logic
   const formatPhoneNumber = (value: string) => {
-    // 1. Remove all non-digit characters
     const digits = value.replace(/\D/g, '');
-    
-    // 2. Limit to 10 digits
     const limited = digits.slice(0, 10);
-    
-    // 3. Apply the mask: 123-456-7890
     if (limited.length <= 3) return limited;
     if (limited.length <= 6) return `${limited.slice(0, 3)}-${limited.slice(3)}`;
     return `${limited.slice(0, 3)}-${limited.slice(3, 6)}-${limited.slice(6, 10)}`;
@@ -42,7 +40,8 @@ export default function Signup() {
     setLoading(true)
     try {
       await signup(email, password, displayName, phoneNumber, ghinNumber)
-      router.push('/account')
+      // Switch from router.push to showing the modal
+      setShowModal(true)
     } catch (err: any) {
       setError(err.message || 'Failed to create account')
     } finally {
@@ -50,9 +49,19 @@ export default function Signup() {
     }
   }
 
+  const handleResend = async () => {
+    try {
+      await resendVerification(email)
+      setResent(true)
+      setTimeout(() => setResent(false), 3000)
+    } catch (err: any) {
+      setError("Error resending: " + err.message)
+    }
+  }
+
   return (
     <div style={styles.container}>
-      <PageHeader title="Join the League" subtitle="CREATE YOUR PLAYER PROFILE" />
+      <PageHeader title="Membership" subtitle="Welcome, We're Glad You're Here" />
 
       <div style={styles.card}>
         <form onSubmit={handleSignup}>
@@ -81,9 +90,9 @@ export default function Signup() {
                 type="tel"
                 placeholder="555-555-5555"
                 value={phoneNumber}
-                onChange={handlePhoneChange} // Uses the new formatter
+                onChange={handlePhoneChange}
                 style={styles.input}
-                maxLength={12} // Accommodates 10 digits + 2 dashes
+                maxLength={12}
               />
             </div>
             <div style={{ ...styles.inputGroup, flex: 1 }}>
@@ -119,6 +128,28 @@ export default function Signup() {
           </p>
         </div>
       </div>
+
+      {/* VERIFICATION MODAL */}
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <div style={{ fontSize: '40px', marginBottom: '15px' }}>✉️</div>
+            <h2 style={{ margin: '0 0 10px 0', fontWeight: '900', color: '#000' }}>Confirm Your Email</h2>
+            <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>
+              We've sent a verification link to <strong>{email}</strong>. 
+              Please click the link in your inbox to finish setting up your profile.
+            </p>
+            
+            <button onClick={handleResend} style={styles.resendBtn}>
+              {resent ? '✅ Email Sent!' : 'Resend Verification Email'}
+            </button>
+            
+            <div style={{ marginTop: '20px' }}>
+              <Link href="/login" style={styles.link}>Back to Login</Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -135,5 +166,10 @@ const styles = {
   errorText: { color: '#d32f2f', fontSize: '13px', textAlign: 'center' as const, marginBottom: '15px' },
   footer: { marginTop: '25px', textAlign: 'center' as const },
   footerText: { fontSize: '14px', color: '#666' },
-  link: { color: '#2e7d32', fontWeight: 'bold' as const, textDecoration: 'none' }
+  link: { color: '#2e7d32', fontWeight: 'bold' as const, textDecoration: 'none' },
+  
+  // Modal Specific Styles
+  modalOverlay: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' },
+  modalContent: { backgroundColor: '#fff', padding: '40px', borderRadius: '16px', maxWidth: '400px', width: '100%', textAlign: 'center' as const, boxShadow: '0 20px 25px rgba(0,0,0,0.2)' },
+  resendBtn: { width: '100%', backgroundColor: '#000', color: '#fff', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 'bold' as const, cursor: 'pointer' as const }
 }
